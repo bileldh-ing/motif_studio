@@ -145,6 +145,14 @@ describe("timeline operations", () => {
     expect(findClip(p, clipId)!.clip.duration).toBe(240);
   });
 
+  it("image clips default to 5 s but accept any duration", () => {
+    let p = addAsset(base(), asset("img", 0, "image", false));
+    const a = insertMediaClip(p, { trackId: "trk_v2", assetId: "img", start: 0 });
+    expect(findClip(a.project, a.clipId)!.clip.duration).toBe(150);
+    const b = insertMediaClip(a.project, { trackId: "trk_v1", assetId: "img", start: 0, duration: 30 * 600 });
+    expect(findClip(b.project, b.clipId)!.clip.duration).toBe(18000);
+  });
+
   it("duplicate places copy after the original", () => {
     const { project, clipId } = insertMediaClip(base(), { trackId: "trk_v1", assetId: "b", start: 0 });
     const d = duplicateClip(project, clipId);

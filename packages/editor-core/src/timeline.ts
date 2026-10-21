@@ -149,8 +149,10 @@ export function insertMediaClip(p: Project, o: InsertMediaOptions): { project: P
   if (track.kind === "video" && asset.kind === "audio") throw new TimelineError("audio files go on an audio track");
   const sourceIn = o.sourceIn ?? 0;
   const avail = assetFrames(p, asset);
-  const full = Number.isFinite(avail) ? avail - sourceIn : secondsToFrames(5, p.profile.fps);
-  const duration = Math.max(1, Math.min(o.duration ?? full, full));
+  // Images have no intrinsic length: default 5 s, any requested duration allowed.
+  const full = Number.isFinite(avail) ? avail - sourceIn : Number.POSITIVE_INFINITY;
+  const wanted = o.duration ?? (Number.isFinite(full) ? full : secondsToFrames(5, p.profile.fps));
+  const duration = Math.max(1, Math.min(wanted, full));
   let start = Math.max(0, o.start);
   if (!isRangeFree(track, start, duration)) {
     if (!o.findFreeSlot) throw new TimelineError("that spot is occupied");

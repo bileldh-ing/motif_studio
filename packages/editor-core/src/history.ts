@@ -57,6 +57,32 @@ export class History {
     return after;
   }
 
+  /**
+   * Like apply, but consecutive calls with the same `key` within `windowMs`
+   * merge into one undo step (slider drags, nudges).
+   */
+  applyCoalesced(label: string, key: string, fn: (p: Project) => Project, windowMs = 800): Project {
+    const now = Date.now();
+    const top = this.undoStack.at(-1) as (HistoryEntry & { key?: string; at?: number }) | undefined;
+    if (top && top.key === key && top.after === this.current && now - (top.at ?? 0) < windowMs) {
+      const after = fn(this.current);
+      if (after === this.current) return after;
+      top.after = after;
+      top.at = now;
+      this.redoStack = [];
+      this.current = after;
+      this.emit();
+      return after;
+    }
+    const res = this.apply(label, fn);
+    const e = this.undoStack.at(-1) as HistoryEntry & { key?: string; at?: number };
+    if (e && e.after === res) {
+      e.key = key;
+      e.at = now;
+    }
+    return res;
+  }
+
   /** Replace state without recording (e.g. UI-only fields like playhead). */
   replaceSilently(p: Project) {
     this.current = p;

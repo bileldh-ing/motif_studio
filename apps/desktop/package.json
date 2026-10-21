@@ -1,0 +1,61 @@
+{
+  "name": "@motif/desktop",
+  "productName": "MOTIF Studio",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MOTIF Studio desktop video editor",
+  "author": "MOTIF Studio",
+  "type": "module",
+  "main": "./out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "start": "electron-vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "package:linux": "electron-vite build && electron-builder --linux AppImage deb",
+    "package:win": "electron-vite build && electron-builder --win nsis",
+    "package:mac": "electron-vite build && electron-builder --mac dmg",
+    "smoke": "electron-vite build && xvfb-run -a -s \"-screen 0 1600x1000x24\" electron . --no-sandbox --disable-gpu"
+  },
+  "dependencies": {
+    "@motif/editor-core": "workspace:*",
+    "@motif/project-schema": "workspace:*",
+    "@motif/render-engine": "workspace:*",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^5.2.0",
+    "electron": "^44.9.2",
+    "electron-builder": "^26.15.3",
+    "electron-vite": "^6.0.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "vite": "^7.3.7"
+  },
+  "build": {
+    "appId": "studio.motif.desktop",
+    "productName": "MOTIF Studio",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "out/**/*"
+    ],
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "AudioVideo"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.video"
+    }
+  }
+}

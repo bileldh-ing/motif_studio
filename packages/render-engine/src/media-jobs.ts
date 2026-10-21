@@ -70,3 +70,33 @@ export async function makeProxy(
 export async function grabFrameRGB(src: string, atSec: number, w: number, h: number): Promise<Buffer> {
   return runFfmpeg(["-ss", atSec.toFixed(4), "-i", src, "-frames:v", "1", "-vf", `scale=${w}:${h}`, "-f", "rawvideo", "-pix_fmt", "rgb24", "pipe:1"], { captureStdout: true });
 }
+
+/**
+ * Silence detection (local, no ML): FFmpeg's silencedetect filter.
+ * Returns ranges in source seconds; used for "remove silences" suggestions.
+ */
+export async function detectSilences(src: string, thresholdDb = -35, minSec = 0.5): Promise<{ startSec: number; endSec: number }[]> {
+  const { spawn } = await import("node:child_process");
+  const { getToolPaths } = await import("./ffmpeg.js");
+  return new Promise((resolve, reject) => {
+    const child = spawn(getToolPaths().ffmpeg, ["-hide_banner", "-nostdin", "-i", src, "-vn", "-af", `silencedetect=noise=${thresholdDb}dB:d=${minSec}`, "-f", "null", "-"], { windowsHide: true });
+    let err = "";
+    child.stderr.on("data", (d: Buffer) => (err += d.toString()));
+    child.on("error", reject);
+    child.on("close", (code) => {
+      if (code !== 0) return reject(new Error("silence detection failed"));
+      const ranges: { startSec: number; endSec: number }[] = [];
+      let start: number | null = null;
+      for (const line of err.split("\n")) {
+        const s = /silence_start: (-?[\d.]+)/.exec(line);
+        const e = /silence_end: ([\d.]+)/.exec(line);
+        if (s) start = Math.max(0, Number(s[1]));
+        if (e && start !== null) {
+          ranges.push({ startSec: start, endSec: Number(e[1]) });
+          start = null;
+        }
+      }
+      resolve(ranges);
+    });
+  });
+}

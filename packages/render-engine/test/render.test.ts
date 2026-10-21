@@ -167,10 +167,31 @@ describe("render engine (technical spike)", () => {
     p = insertMediaClip(p, { trackId: "trk_v1", assetId: green.id, start: 200, duration: 30 * 600 }).project;
     const ac = new AbortController();
     const out = join(OUT, "cancel.mp4");
-    const pr = renderProject(p, { ...preset, preset: "medium", crf: 10 }, { outputPath: out }, { signal: ac.signal });
-    setTimeout(() => ac.abort(), 800);
+    let aborted = false;
+    const pr = renderProject(p, { ...preset, preset: "medium", crf: 10 }, { outputPath: out }, {
+      signal: ac.signal,
+      onProgress: (f, stage) => {
+        if (stage === "encoding" && f > 0.005 && !aborted) {
+          aborted = true;
+          ac.abort();
+        }
+      },
+    });
     await expect(pr).rejects.toBeInstanceOf(CancelledError);
+    expect(aborted).toBe(true);
     const left = (await readdir(OUT)).filter((f) => f.includes("cancel"));
     expect(left).toEqual([]);
+  });
+});
+
+describe("silence detection", () => {
+  it("finds the silent gap in a tone-silence-tone file", async () => {
+    const { detectSilences } = await import("@motif/render-engine");
+    const f = join(FIX, "gap.wav");
+    await runFfmpeg(["-y", "-f", "lavfi", "-i", "sine=f=440:d=1", "-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono:d=1.5", "-f", "lavfi", "-i", "sine=f=440:d=1", "-filter_complex", "[0][1][2]concat=n=3:v=0:a=1", f]);
+    const r = await detectSilences(f, -40, 0.5);
+    expect(r).toHaveLength(1);
+    expect(r[0]!.startSec).toBeCloseTo(1, 1);
+    expect(r[0]!.endSec).toBeCloseTo(2.5, 1);
   });
 });
