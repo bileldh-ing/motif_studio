@@ -1,7 +1,7 @@
 {
   "name": "@motif/desktop",
   "productName": "MOTIF Studio",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "MOTIF Studio desktop video editor",
   "author": "MOTIF Studio",

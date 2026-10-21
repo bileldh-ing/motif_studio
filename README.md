@@ -46,3 +46,11 @@ packages/render-engine    ffprobe import, thumbnails/peaks/proxies, FFmpeg graph
 apps/desktop              Electron main / preload / React renderer
 docs/                     architecture, ADRs, format, status
 ```
+
+## v0.2 — liquid glass + CapCut-class tools
+See `docs/CAPCUT_RESEARCH.md` for the full feature parity matrix.
+
+Optional local AI (auto captions): `pip install faster-whisper` (Python 3.9+). Set `MOTIF_PYTHON` to use a specific interpreter.
+The Whisper model (tiny/base/small) downloads once from Hugging Face on first use; audio never leaves the machine.
+Text-to-speech uses FFmpeg's libflite, stabilization uses vid.stab — both ship with standard FFmpeg builds.
+Bundled fonts (DejaVu, Poppins, Bebas Neue, Anton, Playfair Display, Pacifico, Lobster) are OFL/Bitstream-licensed.

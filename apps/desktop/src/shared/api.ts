@@ -105,6 +105,17 @@ export interface MotifApi {
   importSrtDialog(): Promise<string | null>;
   exportSrtDialog(srt: string, defaultName: string): Promise<string | null>;
 
+  // local AI & processing tools (all run on this machine)
+  aiStatus(): Promise<{ whisper: boolean; python: string | null; flite: boolean; vidstab: boolean; message?: string }>;
+  transcribe(asset: MediaAsset, opts: { model: "tiny" | "base" | "small"; language?: string }): Promise<{ jobId: string }>;
+  textToSpeech(text: string, voice: string): Promise<MediaAsset>;
+  stabilize(asset: MediaAsset): Promise<{ jobId: string }>;
+  extractAudio(asset: MediaAsset): Promise<MediaAsset>;
+  cancelJob(jobId: string): Promise<void>;
+  onJobProgress(cb: (e: { jobId: string; fraction: number }) => void): () => void;
+  onJobDone(cb: (e: { jobId: string; ok: boolean; cancelled?: boolean; error?: string; result?: any }) => void): () => void;
+  voices(): Promise<{ id: string; label: string }[]>;
+
   onMenu(cb: (command: string) => void): () => void;
   pathForFile(file: File): string;
 }

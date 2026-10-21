@@ -7,6 +7,7 @@
 import type { Clip, Easing, Keyframe, Project, Track, AnimatableProperty } from "@motif/project-schema";
 import { clipEnd } from "./timeline.js";
 import { framesToSeconds, sourceSecondsAt } from "./time.js";
+import { motionSpec, evalMotion } from "./motion.js";
 
 export function ease(t: number, e: Easing): number {
   switch (e) {
@@ -94,19 +95,18 @@ export function visualLayersAt(p: Project, frame: number): VisualLayer[] {
       if (frame < c.start || frame >= end) continue;
       const local = frame - c.start;
       const kfLocal = Math.min(local, c.duration - 1);
-      let alpha = 1;
-      if (c.transitionIn && local < c.transitionIn.frames) alpha = (local + 1) / (c.transitionIn.frames + 1);
+      const m = evalMotion(motionSpec(c, p.profile.width, p.profile.height), Math.min(local, c.duration));
       out.push({
         clip: c,
         track,
         z: ti * 2 + (frame >= clipEnd(c) ? 0 : 1),
         localFrame: local,
-        sourceSeconds: c.kind === "media" ? sourceSecondsAt(c, frame, fps) : framesToSeconds(local, fps),
-        x: propertyAt(c, "x", kfLocal),
-        y: propertyAt(c, "y", kfLocal),
-        scale: propertyAt(c, "scale", kfLocal),
+        sourceSeconds: c.kind === "media" ? clipSourceSeconds(c, frame, fps) : framesToSeconds(local, fps),
+        x: propertyAt(c, "x", kfLocal) + m.dx,
+        y: propertyAt(c, "y", kfLocal) + m.dy,
+        scale: propertyAt(c, "scale", kfLocal) * m.scaleMul,
         rotation: propertyAt(c, "rotation", kfLocal),
-        opacity: Math.max(0, Math.min(1, propertyAt(c, "opacity", kfLocal))) * alpha,
+        opacity: Math.max(0, Math.min(1, propertyAt(c, "opacity", kfLocal))) * m.alpha,
       });
     }
   });
@@ -131,6 +131,19 @@ export function audioSources(p: Project): AudioSource[] {
     }
   }
   return out;
+}
+
+/**
+ * Source time shown at a timeline frame, honouring freeze and reverse.
+ * Reverse plays the clip's source range [sourceIn, sourceIn + span) backwards.
+ */
+export function clipSourceSeconds(c: Clip, frame: number, fps: { num: number; den: number }): number {
+  if (c.freeze) return (c.sourceIn * fps.den) / fps.num;
+  if (!c.reverse) return sourceSecondsAt(c, Math.min(frame, c.start + c.duration - 1), fps);
+  const local = Math.min(frame - c.start, c.duration - 1);
+  const speed = c.speed.num / c.speed.den;
+  const spanFrames = c.duration * speed;
+  return ((c.sourceIn + spanFrames - (local + 1) * speed) * fps.den) / fps.num;
 }
 
 /** Fit `src` (w,h) inside canvas (contain) then apply scale. */

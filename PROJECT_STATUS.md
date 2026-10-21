@@ -34,3 +34,12 @@ _Last updated: 2026-10-21_
 2. Whisper (faster-whisper) local worker behind an optional Python service, wired to Captions tab.
 3. Masks/chroma key/blend modes with render parity tests.
 4. Phase 7: Fastify API + Postgres (Drizzle) + S3 storage + Stripe test-mode, Next.js account app.
+
+
+## v0.2.0 — 2026-10-21 · Liquid glass + CapCut-class tools
+- New liquid-glass UI (floating frosted panels, icon rail with glass tooltips, floating transport pill, orange playhead, violet clips, cyan waveforms), Figma-style custom cursors per tool/target, cursor chips while dragging, on-canvas move/scale/rotate handles with centre snapping, command palette (Ctrl+K).
+- Tools: blade/select/hand, copy/paste, freeze frame, reverse, crop/mirror/flip, masks, chroma key, blur background fill, shapes, 10 filter looks + 10 adjustments, 7 transitions, in/out animations, rotation keyframes, text fonts/stroke/shadow presets.
+- Audio/AI (all local): Whisper auto captions, flite text-to-speech, noise reduction, voice pitch, extract audio, vid.stab stabilization.
+- Export: 480p–4K + custom, 24–60 fps, H.264/HEVC/AV1/VP9/ProRes, CRF or bitrate, GIF, audio-only, PNG still; size estimate.
+- Schema v2 with v1→v2 migration. See docs/CAPCUT_RESEARCH.md for the parity matrix.
+- Tests: 20 editor-core + 8 render + 19 effects tests (pixel-verified), UI smoke 20+ steps incl. real 4K export.

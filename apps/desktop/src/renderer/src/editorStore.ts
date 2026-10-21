@@ -20,13 +20,25 @@ export interface UiState {
   toast: { kind: "info" | "error" | "ok"; text: string; id: number } | null;
   missing: Set<string>;
   derived: Record<string, DerivedMedia>;
-  leftTab: "media" | "text" | "audio" | "captions" | "tools";
+  leftTab: LeftTab;
+  inspectorTab: InspectorTab;
+  tool: "select" | "blade" | "hand";
   showExport: boolean;
   showShortcuts: boolean;
+  showPalette: boolean;
+  /** Figma-style label that follows the cursor while dragging */
+  cursorChip: { x: number; y: number; text: string } | null;
+  guides: { v: boolean; h: boolean } | null;
+  /** long-running local job (AI, stabilize…) */
+  job: { label: string; fraction: number | null } | null;
 }
+
+export type LeftTab = "media" | "audio" | "text" | "shapes" | "effects" | "transitions" | "captions" | "ai";
+export type InspectorTab = "video" | "animation" | "adjust" | "speed" | "audio" | "text" | "shape";
 
 export class EditorSession {
   history: History;
+  clipboard: import("@motif/editor-core").ClipboardData | null = null;
   path: string;
   ui: UiState;
   private listeners = new Set<Listener>();
@@ -47,8 +59,14 @@ export class EditorSession {
       missing: new Set(missing),
       derived: {},
       leftTab: "media",
+      inspectorTab: "video",
+      tool: "select",
       showExport: false,
       showShortcuts: false,
+      showPalette: false,
+      cursorChip: null,
+      guides: null,
+      job: null,
     };
     this.snapshot = { project, ui: this.ui, v: 0 };
     this.history.subscribe(() => {

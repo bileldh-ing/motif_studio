@@ -25,15 +25,19 @@ export interface RenderCallbacks {
   onLog?: (line: string) => void;
 }
 
-export async function verifyOutput(path: string, expect: { durationSec: number; width: number; height: number; fpsApprox: number }): Promise<VerificationResult> {
+export async function verifyOutput(
+  path: string,
+  expect: { durationSec: number; width: number; height: number; fpsApprox: number; kind?: RenderPreset["kind"]; audio?: boolean },
+): Promise<VerificationResult> {
   const problems: string[] = [];
+  const kind = expect.kind ?? "video";
   try {
     const { meta } = await probeMedia(path);
-    const frameTol = 2 / expect.fpsApprox + 0.06;
-    if (!meta.hasVideo) problems.push("output has no video stream");
-    if (!meta.hasAudio) problems.push("output has no audio stream");
-    if (meta.width !== expect.width || meta.height !== expect.height) problems.push(`output is ${meta.width}x${meta.height}, expected ${expect.width}x${expect.height}`);
-    if (Math.abs(meta.durationSec - expect.durationSec) > frameTol) problems.push(`output lasts ${meta.durationSec.toFixed(3)} s, expected ${expect.durationSec.toFixed(3)} s`);
+    const frameTol = kind === "gif" ? 0.25 : 2 / expect.fpsApprox + 0.06;
+    if (kind !== "audio" && !meta.hasVideo) problems.push("output has no video stream");
+    if ((kind === "audio" || (kind === "video" && expect.audio !== false)) && !meta.hasAudio) problems.push("output has no audio stream");
+    if (kind !== "audio" && (meta.width !== expect.width || meta.height !== expect.height)) problems.push(`output is ${meta.width}x${meta.height}, expected ${expect.width}x${expect.height}`);
+    if (kind !== "frame" && Math.abs(meta.durationSec - expect.durationSec) > frameTol) problems.push(`output lasts ${meta.durationSec.toFixed(3)} s, expected ${expect.durationSec.toFixed(3)} s`);
     return {
       ok: problems.length === 0,
       problems,
@@ -75,6 +79,8 @@ export async function renderProject(project: Project, preset: RenderPreset, opts
       width: preset.width,
       height: preset.height,
       fpsApprox: preset.fps.num / preset.fps.den,
+      kind: preset.kind,
+      audio: preset.audioCodec !== "none",
     });
     await rename(tmpOut, opts.outputPath);
     cb.onProgress?.(1, "verifying");

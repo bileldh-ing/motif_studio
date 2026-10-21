@@ -65,7 +65,7 @@ function commit(p: Project): Project {
       const a = assetOf(p, c);
       if (a) {
         const avail = assetFrames(p, a);
-        if (c.sourceIn + sourceFramesConsumed(c.duration, c.speed) > avail + 1)
+        if (c.freeze ? c.sourceIn >= avail + 1 : c.sourceIn + sourceFramesConsumed(c.duration, c.speed) > avail + 1)
           throw new TimelineError(`clip ${c.id} exceeds its source media`);
       }
     }
@@ -249,7 +249,7 @@ export function trimEnd(p: Project, clipId: string, newEnd: number): Project {
   const a = assetOf(p, c);
   if (a) {
     const avail = assetFrames(p, a);
-    if (Number.isFinite(avail)) {
+    if (Number.isFinite(avail) && !c.freeze) {
       const maxDur = Math.floor(((avail - c.sourceIn) * c.speed.den) / c.speed.num);
       end = Math.min(end, c.start + maxDur);
     }

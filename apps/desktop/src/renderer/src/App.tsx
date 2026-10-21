@@ -2,6 +2,9 @@ import { useEffect, useState } from "react";
 import { Home } from "./components/Home";
 import { Editor } from "./components/Editor";
 import { EditorSession } from "./editorStore";
+import { installCursors } from "./cursors";
+
+installCursors();
 import type { OpenedProject } from "../../shared/api";
 
 export function App() {

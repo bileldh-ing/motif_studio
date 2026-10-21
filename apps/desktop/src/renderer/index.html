@@ -7,6 +7,27 @@
       content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: motif-media:; media-src 'self' blob: motif-media:; connect-src 'self' motif-media: ws://localhost:*; font-src 'self' data:"
     />
     <title>MOTIF Studio</title>
+    <style>
+/* Bundled fonts: identical glyphs in preview (canvas) and export (FFmpeg drawtext). */
+@font-face { font-family: "MotifDejaVuSans"; src: url("fonts/DejaVuSans.ttf") format("truetype"); font-weight: 400; font-display: block; }
+@font-face { font-family: "MotifDejaVuSans"; src: url("fonts/DejaVuSans-Bold.ttf") format("truetype"); font-weight: 700; font-display: block; }
+@font-face { font-family: "MotifPoppins"; src: url("fonts/Poppins-Regular.ttf") format("truetype"); font-weight: 400; font-display: block; }
+@font-face { font-family: "MotifPoppins"; src: url("fonts/Poppins-Bold.ttf") format("truetype"); font-weight: 700; font-display: block; }
+@font-face { font-family: "MotifBebas"; src: url("fonts/BebasNeue-Regular.ttf") format("truetype"); font-weight: 400; font-display: block; }
+@font-face { font-family: "MotifBebas"; src: url("fonts/BebasNeue-Regular.ttf") format("truetype"); font-weight: 700; font-display: block; }
+@font-face { font-family: "MotifAnton"; src: url("fonts/Anton-Regular.ttf") format("truetype"); font-weight: 400; font-display: block; }
+@font-face { font-family: "MotifAnton"; src: url("fonts/Anton-Regular.ttf") format("truetype"); font-weight: 700; font-display: block; }
+@font-face { font-family: "MotifPlayfair"; src: url("fonts/PlayfairDisplay-Variable.ttf") format("truetype"); font-weight: 400; font-display: block; }
+@font-face { font-family: "MotifPlayfair"; src: url("fonts/PlayfairDisplay-Variable.ttf") format("truetype"); font-weight: 700; font-display: block; }
+@font-face { font-family: "MotifDejaVuSerif"; src: url("fonts/DejaVuSerif.ttf") format("truetype"); font-weight: 400; font-display: block; }
+@font-face { font-family: "MotifDejaVuSerif"; src: url("fonts/DejaVuSerif-Bold.ttf") format("truetype"); font-weight: 700; font-display: block; }
+@font-face { font-family: "MotifPacifico"; src: url("fonts/Pacifico-Regular.ttf") format("truetype"); font-weight: 400; font-display: block; }
+@font-face { font-family: "MotifPacifico"; src: url("fonts/Pacifico-Regular.ttf") format("truetype"); font-weight: 700; font-display: block; }
+@font-face { font-family: "MotifLobster"; src: url("fonts/Lobster-Regular.ttf") format("truetype"); font-weight: 400; font-display: block; }
+@font-face { font-family: "MotifLobster"; src: url("fonts/Lobster-Regular.ttf") format("truetype"); font-weight: 700; font-display: block; }
+@font-face { font-family: "MotifMono"; src: url("fonts/DejaVuSansMono.ttf") format("truetype"); font-weight: 400; font-display: block; }
+@font-face { font-family: "MotifMono"; src: url("fonts/DejaVuSansMono-Bold.ttf") format("truetype"); font-weight: 700; font-display: block; }
+    </style>
   </head>
   <body>
     <div id="root"></div>

@@ -59,10 +59,11 @@ export function Home({ onOpen }: { onOpen: (o: OpenedProject) => void }) {
   const filtered = (recent ?? []).filter((r) => r.title.toLowerCase().includes(query.toLowerCase()));
 
   return (
-    <div className="home">
-      <aside className="home-side">
-        <div className="brand">
-          <span className="logo" aria-hidden>◆</span> MOTIF <span className="brand-sub">Studio</span>
+    <div className="home app-bg">
+      <aside className="home-side glass-panel">
+        <div className="brand-btn static">
+          <span className="logo-orb" aria-hidden />
+          <span className="brand-txt"><b>MOTIF</b><small>Video Studio</small></span>
         </div>
         <nav>
           <button className="nav-item active">Projects</button>
@@ -83,8 +84,9 @@ export function Home({ onOpen }: { onOpen: (o: OpenedProject) => void }) {
       </aside>
 
       <main className="home-main">
-        <section className="new-card">
+        <section className="new-card glass-panel">
           <h1>Start something new</h1>
+          <p className="dim">Local-first editing with AI captions, 4K export and studio-grade tools. Nothing leaves your machine.</p>
           <div className="new-row">
             <label className="field grow">
               <span>Name</span>
@@ -137,7 +139,7 @@ export function Home({ onOpen }: { onOpen: (o: OpenedProject) => void }) {
           ) : (
             <div className="recent-grid">
               {filtered.map((r) => (
-                <div key={r.path} className={"recent-card" + (r.exists ? "" : " gone")}>
+                <div key={r.path} className={"recent-card glass-panel" + (r.exists ? "" : " gone")}>
                   <button className="recent-open" onClick={() => openRecent(r)} disabled={!!busy}>
                     <div className="recent-thumb" style={{ aspectRatio: r.width && r.height ? `${r.width}/${r.height}` : "16/9" }}>
                       <span>{r.width ? `${r.width}×${r.height}` : "?"}</span>
@@ -181,7 +183,7 @@ export function Home({ onOpen }: { onOpen: (o: OpenedProject) => void }) {
 
       {recovery && (
         <div className="modal-back">
-          <div className="modal" role="dialog" aria-modal="true" aria-labelledby="rec-h">
+          <div className="modal glass-strong" role="dialog" aria-modal="true" aria-labelledby="rec-h">
             <h3 id="rec-h">Unsaved changes found</h3>
             <p>MOTIF autosaved changes to this project at {new Date(recovery.at).toLocaleString()} that were never saved. Restore them?</p>
             <div className="modal-actions">

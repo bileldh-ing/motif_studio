@@ -7,7 +7,7 @@ import { Readable } from "node:stream";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { DEFAULT_PRESETS, ProjectSchema, RenderPresetSchema, MediaAssetSchema, newId, type MediaAsset, type Project } from "@motif/project-schema";
-import { addAsset, insertMediaClip, insertTextClip, setTransitionIn, updateClip, secondsToFrames } from "@motif/editor-core";
+import { insertMediaClip, insertTextClip, setTransition, updateClip, secondsToFrames, applyLook, insertShapeClip, findClip } from "@motif/editor-core";
 import {
   importMedia,
   renderProject,
@@ -20,7 +20,13 @@ import {
   findDefaultFont,
   detectSilences,
   CancelledError,
+  transcribe,
+  textToSpeech,
+  stabilize,
+  extractAudio,
+  FLITE_VOICES,
 } from "@motif/render-engine";
+import { execFile } from "node:child_process";
 import * as store from "./store";
 import { runSmoke } from "./smoke";
 import type { RenderDoneEvent } from "../shared/api";
@@ -37,6 +43,46 @@ let win: BrowserWindow | null = null;
 const allowedMedia = new Map<string, string>(); // assetId -> absolute path
 const derivedDir = () => store.userDir("cache");
 const renderJobs = new Map<string, AbortController>();
+const jobs = new Map<string, AbortController>();
+
+/** Bundled fonts: same files for preview (@font-face) and export (drawtext fontfile). */
+function fontDir(): string | undefined {
+  const c = [join(here, "../renderer/fonts"), join(here, "../../src/renderer/public/fonts"), join(process.resourcesPath ?? "", "fonts")];
+  return c.find((d) => existsSync(join(d, "DejaVuSans.ttf")));
+}
+function transcribeScript(): string | undefined {
+  const c = [join(process.resourcesPath ?? "", "ai/transcribe.py"), join(here, "../../../../packages/render-engine/ai/transcribe.py")];
+  return c.find((f) => existsSync(f));
+}
+const genDir = (...p: string[]) => store.userDir("generated", ...p);
+function sendJob(ch: string, payload: unknown) {
+  win?.webContents.send(ch, payload);
+}
+function startJob(run: (signal: AbortSignal, progress: (f: number) => void) => Promise<unknown>): { jobId: string } {
+  const jobId = newId("job");
+  const ac = new AbortController();
+  jobs.set(jobId, ac);
+  run(ac.signal, (fraction) => sendJob("job:progress", { jobId, fraction }))
+    .then((result) => sendJob("job:done", { jobId, ok: true, result }))
+    .catch((e) => sendJob("job:done", { jobId, ok: false, cancelled: e instanceof CancelledError, error: e instanceof CancelledError ? undefined : e.message }))
+    .finally(() => jobs.delete(jobId));
+  return { jobId };
+}
+let aiStatusCache: { whisper: boolean; python: string | null; flite: boolean; vidstab: boolean; message?: string } | null = null;
+async function aiStatus() {
+  if (aiStatusCache) return aiStatusCache;
+  const py = process.env.MOTIF_PYTHON || (process.platform === "win32" ? "python" : "python3");
+  const whisper = await new Promise<boolean>((res) => execFile(py, ["-c", "import faster_whisper"], { windowsHide: true }, (err) => res(!err)));
+  const filters = await new Promise<string>((res) => execFile("ffmpeg", ["-hide_banner", "-filters"], { maxBuffer: 4 << 20 }, (err, out) => res(err ? "" : out)));
+  aiStatusCache = {
+    whisper,
+    python: py,
+    flite: / flite /.test(filters),
+    vidstab: /vidstabdetect/.test(filters),
+    ...(whisper ? {} : { message: "Auto captions need Python 3 with faster-whisper: pip install faster-whisper" }),
+  };
+  return aiStatusCache;
+}
 
 const MIME: Record<string, string> = {
   ".mp4": "video/mp4", ".m4v": "video/mp4", ".mov": "video/quicktime", ".webm": "video/webm", ".mkv": "video/x-matroska",
@@ -158,13 +204,17 @@ async function createDemo() {
   const s = (sec: number) => secondsToFrames(sec, fps);
   const c1 = insertMediaClip(p, { trackId: "trk_v1", assetId: bars.id, start: 0, duration: s(5) });
   const c2 = insertMediaClip(c1.project, { trackId: "trk_v1", assetId: fractal.id, start: s(5), duration: s(5) });
-  p = setTransitionIn(c2.project, c2.clipId, 15);
+  p = setTransition(c2.project, c2.clipId, "slide-left", 15);
+  p = applyLook(p, c2.clipId, "vivid");
   const g = insertMediaClip(p, { trackId: "trk_v2", assetId: grad.id, start: s(2), duration: s(3) });
-  p = updateClip(g.project, g.clipId, { transform: { x: 620, y: -280, scale: 0.3, rotation: 0, opacity: 0.9 } });
-  p = insertTextClip(p, { trackId: "trk_t1", start: 0, duration: s(2.5), content: "Made with MOTIF Studio" }).project;
-  p = insertTextClip(p, { trackId: "trk_t1", start: s(6), duration: s(3), content: "Edit, caption, export.", role: "caption" }).project;
+  p = updateClip(g.project, g.clipId, { transform: { x: 620, y: -280, scale: 0.3, rotation: 0, opacity: 0.95 }, mask: { shape: "ellipse", w: 1, h: 1, cx: 0, cy: 0, feather: 0.04, invert: false }, animIn: { kind: "zoom-in", frames: 15 }, animOut: { kind: "fade", frames: 12 } });
+  const t1 = insertTextClip(p, { trackId: "trk_t1", start: 0, duration: s(2.5), content: "Made with MOTIF" });
+  p = updateClip(t1.project, t1.clipId, { text: { ...findClip(t1.project, t1.clipId)!.clip.text!, font: "bebas", fontSize: 150, strokeWidth: 4, strokeColor: "#6d28d9", color: "#ffffff" }, animIn: { kind: "slide-up", frames: 12 }, animOut: { kind: "fade", frames: 10 } });
+  const t2 = insertTextClip(p, { trackId: "trk_t1", start: s(6), duration: s(3), content: "Edit, caption, export in 4K.", role: "caption" });
+  p = updateClip(t2.project, t2.clipId, { text: { ...findClip(t2.project, t2.clipId)!.clip.text!, font: "poppins", boxOpacity: 0.55 }, animIn: { kind: "fade", frames: 8 } });
+  p = insertShapeClip(p, { trackId: "trk_v2", start: s(6), duration: s(3), type: "rect", fill: "#ff7a3d", w: 18, h: 220 }).project;
   const m = insertMediaClip(p, { trackId: "trk_a1", assetId: music.id, start: 0, duration: s(10) });
-  p = updateClip(m.project, m.clipId, { audio: { gainDb: -8, pan: 0, fadeInFrames: s(1), fadeOutFrames: s(1.5), muted: false } });
+  p = updateClip(m.project, m.clipId, { audio: { ...findClip(m.project, m.clipId)!.clip.audio, gainDb: -8, fadeInFrames: s(1), fadeOutFrames: s(1.5) } });
   for (const a of p.assets) allowedMedia.set(a.id, a.path);
   await store.saveProject(o.path, p);
   return { project: p, path: o.path, recovered: false, missingAssetIds: [] };
@@ -176,8 +226,8 @@ function registerIpc() {
     ffmpeg: await ffmpegVersion(),
     platform: `${process.platform} ${process.arch}`,
     userData: app.getPath("userData"),
-    font: findDefaultFont() ?? null,
-    encoders: [...(await detectEncoders())].filter((e) => ["libx264", "libvpx-vp9", "prores_ks", "aac", "libopus", "h264_nvenc", "h264_videotoolbox", "h264_qsv"].includes(e)),
+    font: fontDir() ? "bundled" : (findDefaultFont() ?? null),
+    encoders: [...(await detectEncoders())].filter((e) => ["libx264", "libvpx-vp9", "prores_ks", "aac", "libopus", "h264_nvenc", "h264_videotoolbox", "h264_qsv", "libx265", "libsvtav1", "libmp3lame", "gif", "png", "pcm_s16le"].includes(e)),
   }));
   handle("settings:get", [], () => store.getSettings());
   handle("settings:set", [z.object({}).passthrough()], (s) => store.setSettings(s as any));
@@ -266,7 +316,7 @@ function registerIpc() {
       const ac = new AbortController();
       renderJobs.set(jobId, ac);
       const send = (ch: string, payload: unknown) => win?.webContents.send(ch, payload);
-      renderProject(project, preset, { outputPath, ...(range ? { range } : {}) }, {
+      renderProject(project, preset, { outputPath, fontDir: fontDir(), ...(range ? { range } : {}) }, {
         signal: ac.signal,
         onProgress: (fraction, stage) => send("render:progress", { jobId, fraction, stage }),
         onLog: (l) => console.log("[render]", l.slice(0, 500)),
@@ -282,6 +332,39 @@ function registerIpc() {
     },
   );
   handle("render:cancel", [z.string()], (jobId) => renderJobs.get(jobId)?.abort());
+
+  handle("ai:status", [], () => aiStatus());
+  handle("ai:voices", [], () => FLITE_VOICES.map((v) => ({ ...v })));
+  handle("ai:transcribe", [MediaAssetSchema, z.object({ model: z.enum(["tiny", "base", "small"]), language: z.string().max(8).optional() })], (asset, o) =>
+    startJob((signal, progress) => transcribe(asset.path, { model: o.model, ...(o.language ? { language: o.language } : {}), script: transcribeScript(), signal, onProgress: progress })),
+  );
+  handle("ai:tts", [z.string().min(1).max(3000), z.string()], async (text, voice) => {
+    const out = genDir(`tts-${Date.now().toString(36)}.wav`);
+    await textToSpeech(text, voice, out);
+    const a = await importMedia(out);
+    const named = { ...a, name: `Voice · ${text.slice(0, 24)}${text.length > 24 ? "…" : ""}`, provenance: "generated" as const };
+    allowedMedia.set(named.id, named.path);
+    return named;
+  });
+  handle("ai:stabilize", [MediaAssetSchema], (asset) =>
+    startJob(async (signal, progress) => {
+      const out = genDir(`${asset.name.replace(/\.[^.]+$/, "")}-stabilized-${Date.now().toString(36)}.mp4`);
+      await stabilize(asset.path, out, asset.meta.durationSec, { signal, onProgress: progress });
+      const a = await importMedia(out);
+      const named = { ...a, name: `${asset.name} (stabilized)`, provenance: "generated" as const };
+      allowedMedia.set(named.id, named.path);
+      return named;
+    }),
+  );
+  handle("ai:extractAudio", [MediaAssetSchema], async (asset) => {
+    const out = genDir(`${asset.name.replace(/\.[^.]+$/, "")}-audio-${Date.now().toString(36)}.wav`);
+    await extractAudio(asset.path, out);
+    const a = await importMedia(out);
+    const named = { ...a, name: `${asset.name} (audio)`, provenance: "generated" as const };
+    allowedMedia.set(named.id, named.path);
+    return named;
+  });
+  handle("job:cancel", [z.string()], (id) => jobs.get(id)?.abort());
   handle("shell:showInFolder", [z.string()], (p) => {
     if (existsSync(p)) shell.showItemInFolder(p);
   });
@@ -341,8 +424,8 @@ function buildMenu() {
 
 function createWindow() {
   win = new BrowserWindow({
-    width: 1480,
-    height: 920,
+    width: 1580,
+    height: 980,
     minWidth: 1100,
     minHeight: 680,
     backgroundColor: "#0e0f12",
@@ -382,5 +465,6 @@ app.whenReady().then(() => {
 
 app.on("window-all-closed", () => {
   for (const ac of renderJobs.values()) ac.abort();
+  for (const ac of jobs.values()) ac.abort();
   if (process.platform !== "darwin") app.quit();
 });
