@@ -1,0 +1,22 @@
+{
+  "name": "motif-studio",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "packageManager": "pnpm@10.14.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -b packages/project-schema packages/editor-core packages/render-engine",
+    "dev:desktop": "pnpm --filter @motif/desktop dev",
+    "build:desktop": "pnpm --filter @motif/desktop build",
+    "demo:render": "node --experimental-strip-types scripts/demo-render.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "typescript": "~5.9.3",
+    "vitest": "^3.2.7"
+  }
+}
