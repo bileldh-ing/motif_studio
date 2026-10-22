@@ -34,7 +34,7 @@ jobs:
     env:
       HAS_SNAP_CREDS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS != '' }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with: { ref: "${{ github.event.inputs.tag || github.ref }}" }
       - uses: pnpm/action-setup@v4
         with: { version: "${{ env.PNPM_VERSION }}" }
@@ -100,7 +100,7 @@ jobs:
     needs: build
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with: { fetch-depth: 0 }
       - name: Publish release with notes
         env: { GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
