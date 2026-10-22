@@ -58,7 +58,7 @@ jobs:
         run: |
           python3 -m venv /opt/venv
           /opt/venv/bin/pip install --quiet faster-whisper
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with: { path: /github/home/.cache/hf, key: hf-whisper-tiny-v1 }
       - run: pnpm install --frozen-lockfile
       - run: ffmpeg -version | head -1
@@ -121,7 +121,7 @@ jobs:
       - uses: actions/setup-node@v5
         with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
       - run: python3 -m venv /opt/venv && /opt/venv/bin/pip install --quiet faster-whisper
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with: { path: /github/home/.cache/hf, key: hf-whisper-tiny-v1 }
       - run: pnpm install --frozen-lockfile
       - run: node node_modules/electron/install.js
