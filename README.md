@@ -1,56 +1,68 @@
 # MOTIF Studio
 
-A local-first desktop video editor (Electron + React + TypeScript) with a real non-linear timeline, frame-accurate project model, FFmpeg render engine and verified exports. Inspired by the *breadth* of creator editors like CapCut Desktop; original brand, UI and code.
+[![CI](https://github.com/bileldh-ing/motif_studio/actions/workflows/ci.yml/badge.svg)](https://github.com/bileldh-ing/motif_studio/actions/workflows/ci.yml)
+[![Release](https://github.com/bileldh-ing/motif_studio/actions/workflows/release.yml/badge.svg)](https://github.com/bileldh-ing/motif_studio/actions/workflows/release.yml)
+[![CodeQL](https://github.com/bileldh-ing/motif_studio/actions/workflows/codeql.yml/badge.svg)](https://github.com/bileldh-ing/motif_studio/actions/workflows/codeql.yml)
 
-![Editor](docs/screenshots/editor.png)
+A **local-first desktop video editor** with a liquid-glass UI, CapCut-class creator tools, on-device AI and verified exports up to 4K — plus an optional **cloud** for versioned projects, teams and billing. Original brand, UI and code; not affiliated with CapCut/ByteDance.
 
-## What works today (tested)
+![Editor](docs/screenshots/editor-v0.2.png)
 
-- **Home**: new project (16:9, 9:16, 1:1, 4:5, 21:9 × 23.976–60 fps), open, recent list with search, rename, duplicate, remove, demo project generated locally with FFmpeg, autosave-recovery prompt.
-- **Media**: import by dialog or drag-drop, real `ffprobe` metadata (codecs, size, rotation, VFR warning), thumbnails, filmstrips, waveform peaks, favorites, filter/sort/search, duplicate detection, missing-media detection and relink.
-- **Timeline**: video / overlay / text / audio tracks, add/rename/hide/mute/solo/lock/delete tracks, drag-move across tracks, edge trim, split (S), ripple delete, lift, duplicate, snapping to edges/playhead/markers, markers, in/out points, zoom/fit, horizontal virtualization, undo/redo for every edit.
-- **Preview**: canvas compositor driven by the same composition model as export (layers, transforms, keyframes, crossfades, opacity, color, titles), proxy-quality badge, frame stepping, playback with audio.
-- **Inspector**: position/scale (keyframable, 5 easings), rotation, opacity, brightness/contrast/saturation, speed 0.25×–4× (pitch-preserving audio), volume/pan/fades, crossfade transitions, text content/size/color/box/position.
-- **Captions**: caption clips, editable cue list, SRT import/export, captions burned into export.
-- **Smart tools**: local silence detection → one-click cut + close gaps. Nothing leaves the machine.
-- **Export**: presets (match project, 1080p, vertical, 720p draft, WebM VP9), CRF and speed, project-fps match, in/out range, progress + ETA, cancel (no partial file left), automatic output verification (streams, size, duration), show in folder, render log.
-- **Project format**: versioned JSON (`.motif`), rational frame rates, integer-frame timeline, deterministic serialization, migrations, `.bak` backup, atomic writes, autosave to a recovery slot.
-- **Security**: `contextIsolation`, `sandbox`, no `nodeIntegration`, typed preload bridge, zod-validated IPC with sender checks, strict CSP, media served only for imported assets, FFmpeg via argv arrays (no shell).
+🎬 **Tutorial video:** see the [`tutorial` release](https://github.com/bileldh-ing/motif_studio/releases/tag/tutorial) — recorded from the real app by CI, narrated offline, and edited & rendered by MOTIF's own engine.
 
-Not built yet (clearly disabled in the UI): speech-to-text auto captions, segmentation/reframe AI, cloud projects/accounts/billing (web app + API), installers signing. See `PROJECT_STATUS.md`.
+## Features
+
+| Area | What you get |
+|---|---|
+| Editing | Multitrack timeline, blade (B), select (V), hand (H), trim, ripple delete, lift, copy/paste, duplicate, freeze frame, reverse, speed 0.25–4×, markers, in/out, snapping, unlimited undo |
+| Canvas | Figma-style on-canvas move/scale/rotate with value chips and snap guides, custom cursors per tool, crop, mirror/flip |
+| Look | 10 filter looks, brightness/contrast/saturation/temperature/hue/sepia/grayscale/blur/vignette/invert, masks (rect/ellipse, feather, invert), chroma key, blurred background fill |
+| Motion | Keyframes with 5 easings (position, scale, rotation, opacity, volume), 7 transitions, in/out animations |
+| Text | Fonts (Poppins, Bebas Neue, Anton, Playfair, Lobster, Pacifico, DejaVu), stroke, shadow, boxes, presets, shapes |
+| Local AI | Whisper auto captions (word timing), offline text-to-speech, noise reduction, voice changer, stabilization, silence removal, extract audio — nothing leaves your machine |
+| Export | 480p–4K or custom, 24–60 fps, H.264/HEVC/AV1/VP9/ProRes, CRF or Mbps, AAC/Opus/MP3/PCM, GIF, audio-only, PNG still, size estimate, automatic output verification |
+| Cloud (optional) | Browser/device sign-in, versioned cloud projects, restore any version, conflict resolution (keep both / overwrite), SHA-256-verified media transfer with dedupe, team workspaces with roles, plans & usage, Stripe billing |
+| Ops | Auto-update, crash recovery + logs, diagnostic bundle, `.motif` file association, **no telemetry** |
+
+## Repository
+
+```
+apps/desktop      Electron + React editor (main, preload, renderer), electron-builder.yml, demo director
+apps/api          Fastify cloud API · PostgreSQL (Drizzle, SQL migrations) · signed storage · Stripe
+apps/web          Next.js web app (marketing, account, cloud projects, billing, team, device approval, admin)
+packages/project-schema   zod project schema + migrations
+packages/editor-core      rational timebase, timeline ops, undo, shared composition model
+packages/render-engine    ffprobe import, FFmpeg graph builder, render + verify, local AI tools
+packages/cloud-client     desktop ⇄ cloud sync (upload/download, conflicts, integrity)
+scripts/                  FFmpeg bundling, tutorial-video narration
+docs/                     ADRs, feature matrix, CapCut research, release/store checklist, threat model, privacy, operations
+```
 
 ## Quick start
 
-Requirements: Node 22+, pnpm 10, FFmpeg + ffprobe on PATH (or `MOTIF_FFMPEG` / `MOTIF_FFPROBE`).
+Requirements: Node 22+, pnpm 10, FFmpeg 7+ on PATH (release builds bundle it).
 
 ```bash
 pnpm install
-pnpm test                 # unit + render integration tests
-pnpm dev:desktop          # launch the editor
-pnpm build:desktop        # production bundle
-pnpm --filter @motif/desktop package:linux   # AppImage/deb (also :win, :mac)
+pnpm test                 # all tests (embedded PostgreSQL is started automatically for API tests)
+pnpm dev:desktop          # the editor
+docker compose up         # cloud API + PostgreSQL on :8787 (optional)
+pnpm dev:web              # web app on :3000 (NEXT_PUBLIC_API_URL=http://localhost:8787)
 ```
 
-Linux headless smoke test (drives the real UI, exports a file, writes screenshots):
+Auto captions: `pip install faster-whisper` (set `MOTIF_PYTHON` if Python is elsewhere).
 
-```bash
-MOTIF_SMOKE_DIR=$PWD/tests/output/smoke pnpm --filter @motif/desktop smoke
-```
+## CI/CD
 
-## Layout
+- **CI** (every push/PR): typecheck · unit/render/effects/API/sync tests on Debian trixie + FFmpeg 7.1 + PostgreSQL 17 + Whisper · Next.js build · API container boot · Electron UI smoke test under Xvfb (screenshots as artifacts) · unsigned installers for Windows, macOS and Linux with a packaged-app launch check.
+- **Release** (tag `vX.Y.Z`): builds NSIS + Microsoft Store appx, dmg/zip (arm64+x64), AppImage/deb/snap; signs and notarizes when secrets exist; publishes the GitHub Release used by auto-update; uploads checksums and store packages. See [docs/RELEASE.md](docs/RELEASE.md).
+- **Tutorial video** workflow: records the real app driving every feature, narrates with Piper, renders the edit with MOTIF.
+- **CodeQL** + **Dependabot**.
 
-```
-packages/project-schema   versioned project schema (zod), migrations, presets
-packages/editor-core      rational timebase, timeline commands, undo/redo, composition evaluation, SRT
-packages/render-engine    ffprobe import, thumbnails/peaks/proxies, FFmpeg graph builder, render + verify, silence detect
-apps/desktop              Electron main / preload / React renderer
-docs/                     architecture, ADRs, format, status
-```
+## Docs
 
-## v0.2 — liquid glass + CapCut-class tools
-See `docs/CAPCUT_RESEARCH.md` for the full feature parity matrix.
+[Project status](PROJECT_STATUS.md) · [Changelog](CHANGELOG.md) · [Feature matrix](docs/FEATURE_MATRIX.md) · [CapCut research](docs/CAPCUT_RESEARCH.md) · [Release & stores](docs/RELEASE.md) · [Operations](docs/OPERATIONS.md) · [Threat model](docs/THREAT_MODEL.md) · [Privacy](docs/PRIVACY.md) · [Third-party notices](THIRD_PARTY_NOTICES.md)
 
-Optional local AI (auto captions): `pip install faster-whisper` (Python 3.9+). Set `MOTIF_PYTHON` to use a specific interpreter.
-The Whisper model (tiny/base/small) downloads once from Hugging Face on first use; audio never leaves the machine.
-Text-to-speech uses FFmpeg's libflite, stabilization uses vid.stab — both ship with standard FFmpeg builds.
-Bundled fonts (DejaVu, Poppins, Bebas Neue, Anton, Playfair Display, Pacifico, Lobster) are OFL/Bitstream-licensed.
+## License
+
+© 2026 Bilel Dhahri. FFmpeg is bundled as a separate executable under its own license (see THIRD_PARTY_NOTICES.md).

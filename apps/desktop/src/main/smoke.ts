@@ -236,6 +236,17 @@ export async function runSmoke(win: BrowserWindow, dir: string) {
         await window.motif.startRender(s.project, p, ${JSON.stringify(out)});
       })`);
     });
+    await step("cloud dialog offers sign-in (honest local-only mode)", async () => {
+      await clickText(".cloud-btn", "☁");
+      const ok = await waitFor("document.querySelector('.cloud-dialog .cloud-signin')", 8000);
+      await shot("11-cloud-signin");
+      await clickText(".cloud-dialog .modal-actions button", "Close");
+      return ok;
+    });
+    await step("diagnostics + update state IPC", async () => {
+      const u = await js<any>("window.motif.updateState()");
+      return u && u.state === "disabled" ? u.reason : false;
+    });
     await js(`${S}.setUi({ leftTab: 'ai', selection: [${S}.project.tracks.find(t=>t.id==='trk_v1').clips[0].id] })`);
     await sleep(400);
     await shot("10-ai-tools");
