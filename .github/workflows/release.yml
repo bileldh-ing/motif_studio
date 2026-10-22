@@ -21,9 +21,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: Linux (AppImage, deb, snap)
+          - name: Linux (AppImage, deb)
             os: ubuntu-24.04
-            args: --linux AppImage deb snap --x64
+            args: --linux AppImage deb --x64
           - name: Windows (NSIS + Microsoft Store appx)
             os: windows-latest
             args: --win nsis appx --x64
@@ -31,6 +31,8 @@ jobs:
             os: macos-14
             args: --mac dmg zip --arm64 --x64
     runs-on: ${{ matrix.os }}
+    env:
+      HAS_SNAP_CREDS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS != '' }}
     steps:
       - uses: actions/checkout@v5
         with: { ref: "${{ github.event.inputs.tag || github.ref }}" }
@@ -44,9 +46,6 @@ jobs:
         run: |
           node scripts/fetch-ffmpeg.mjs
           if [ "$RUNNER_OS" = "macOS" ]; then node scripts/fetch-ffmpeg.mjs darwin x64; fi
-      - name: Snapcraft
-        if: runner.os == 'Linux'
-        run: sudo snap install snapcraft --classic
       - name: Build, sign (when configured) and publish
         working-directory: apps/desktop
         shell: bash
@@ -74,8 +73,17 @@ jobs:
           fi
           pnpm exec electron-vite build
           pnpm exec electron-builder ${{ matrix.args }} $EXTRA --publish always
+      - name: Snap package (best effort; needs snapcraft)
+        if: runner.os == 'Linux'
+        continue-on-error: true
+        working-directory: apps/desktop
+        env: { GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
+        run: |
+          sudo snap install snapcraft --classic
+          pnpm exec electron-builder --linux snap --x64 --publish never
       - name: Upload to Snap Store (edge)
-        if: runner.os == 'Linux' && env.SNAPCRAFT_STORE_CREDENTIALS != ''
+        if: runner.os == 'Linux' && env.HAS_SNAP_CREDS == 'true'
+        continue-on-error: true
         env: { SNAPCRAFT_STORE_CREDENTIALS: "${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}" }
         run: snapcraft upload --release=edge apps/desktop/release/*.snap
       - uses: actions/upload-artifact@v4
