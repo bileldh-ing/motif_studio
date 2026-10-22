@@ -13,6 +13,14 @@ import { createProject, newId, type Project, type Keyframe } from "@motif/projec
 import { insertMediaClip, insertTextClip, insertShapeClip, updateClip, findClip } from "@motif/editor-core";
 import { importMedia, renderProject, runFfmpeg } from "@motif/render-engine";
 
+const report = (e: any) => {
+  const tail = String(e?.stderrTail ?? e?.stack ?? e).split("\n").filter((l) => !/No accelerated colorspace/.test(l)).slice(-15).join("%0A");
+  console.error(`::error title=compose::${e?.message}%0A${tail}`);
+  process.exit(1);
+};
+process.on("unhandledRejection", report);
+process.on("uncaughtException", report);
+
 const [dir, out] = [resolve(process.argv[2] ?? "demo-work"), resolve(process.argv[3] ?? "motif-tutorial.mp4")];
 const FPS = 30;
 const f = (sec: number) => Math.round(sec * FPS);
@@ -60,14 +68,23 @@ const bgA = await add(bg);
 const musicA = await add(music);
 
 const text = (track: string, start: number, dur: number, content: string, style: Record<string, unknown>, extra: Record<string, unknown> = {}) => {
-  const r = insertTextClip(p, { trackId: track, start, duration: dur, content, findFreeSlot: false });
-  const c = findClip(r.project, r.clipId)!.clip;
-  p = updateClip(r.project, r.clipId, { text: { ...c.text!, ...style }, ...extra } as any);
-  return r.clipId;
+  try {
+    const r = insertTextClip(p, { trackId: track, start, duration: dur, content, findFreeSlot: false });
+    const c = findClip(r.project, r.clipId)!.clip;
+    p = updateClip(r.project, r.clipId, { text: { ...c.text!, ...style }, ...extra } as any);
+    return r.clipId;
+  } catch (e: any) {
+    console.warn(`::warning title=compose::skipped text "${content.slice(0, 40)}" on ${track} at ${start}: ${e.message}`);
+    return null;
+  }
 };
 const shape = (start: number, dur: number, type: "rect" | "ellipse", fill: string, w: number, h: number, extra: Record<string, unknown>, trackId = "bar") => {
-  const r = insertShapeClip(p, { trackId, start, duration: dur, type, fill, w, h });
-  p = updateClip(r.project, r.clipId, extra as any);
+  try {
+    const r = insertShapeClip(p, { trackId, start, duration: dur, type, fill, w, h });
+    p = updateClip(r.project, r.clipId, extra as any);
+  } catch (e: any) {
+    console.warn(`::warning title=compose::skipped shape on ${trackId} at ${start}: ${e.message}`);
+  }
 };
 
 // background for the whole video, music bed underneath
@@ -173,9 +190,6 @@ for (const [i, s] of segs.entries()) {
 }
 
 // ---------------------------------------------------------------- outro
-orb("deco1", t, OUTRO, -70, -300, "#29c6ff", 120);
-orb("deco2", t + 0.2, OUTRO - 0.2, -35, -240, "#ff7a3d", 120);
-orb("deco3", t + 0.4, OUTRO - 0.4, 35, -240, "#ff4f6d", 120);
 text("titles", f(t + 0.2), f(OUTRO - 0.2), "Thanks for watching", { font: "bebas", fontSize: 150, color: "#ffffff", shadow: true }, { transform: { x: 0, y: -80, scale: 1, rotation: 0, opacity: 1 }, animIn: { kind: "slide-up", frames: 14 }, animOut: { kind: "fade", frames: 18 } });
 text("titles2", f(t + 0.8), f(OUTRO - 0.8), "github.com/bileldh-ing/motif_studio", { font: "poppins", fontSize: 52, color: "#c4b5fd", boxColor: "#1b1430", boxOpacity: 0.7, shadow: false }, { transform: { x: 0, y: 80, scale: 1, rotation: 0, opacity: 1 }, animIn: { kind: "zoom-in", frames: 14 }, animOut: { kind: "fade", frames: 18 } });
 text("labels", f(t + 1.4), f(OUTRO - 1.4), "Edited and rendered with MOTIF Studio itself", { font: "poppins", fontSize: 30, color: "#9a9cab", shadow: false }, { transform: { x: 0, y: 190, scale: 1, rotation: 0, opacity: 1 }, animIn: { kind: "fade", frames: 14 }, animOut: { kind: "fade", frames: 18 } });
@@ -189,11 +203,6 @@ await writeFile(join(dir, "tutorial.motif"), JSON.stringify(p, null, 2));
 if (process.env.MOTIF_COMPOSE_DRY) { console.log("dry run ok", p.tracks.map((t) => `${t.id}:${t.clips.length}`).join(" ")); process.exit(0); }
 const preset = { id: "tutorial", name: "Tutorial 1080p30", kind: "video", container: "mp4", videoCodec: "libx264", audioCodec: "aac", width: 1920, height: 1080, fps: { num: FPS, den: 1 }, crf: 19, audioBitrateK: 192, preset: process.env.MOTIF_COMPOSE_PRESET ?? "medium" } as any;
 let last = -1;
-process.on("unhandledRejection", (e: any) => {
-  const tail = String(e?.stderrTail ?? e?.stack ?? e).split("\n").filter((l) => !/No accelerated colorspace/.test(l)).slice(-15).join("%0A");
-  console.error(`::error title=compose::${e?.message}%0A${tail}`);
-  process.exit(1);
-});
 const r = await renderProject(p, preset, { outputPath: out, fontDir }, {
   onLog: (l) => /error|invalid|failed/i.test(l) && console.error("[ffmpeg]", l.slice(0, 400)),
   onProgress: (fr) => {
