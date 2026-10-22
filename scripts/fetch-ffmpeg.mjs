@@ -29,14 +29,20 @@ async function btbn(plat, ext) {
   if (!pick) throw new Error(`no BtbN build for ${plat}`);
   return [pick];
 }
+async function evermeet() {
+  const pinned = process.env.FFMPEG_MAC_VERSION ?? "8.1.1";
+  const ok = async (u) => (await fetch(u, { method: "HEAD", redirect: "follow" }).catch(() => null))?.ok;
+  const v = (await ok(`https://evermeet.cx/ffmpeg/ffmpeg-${pinned}.zip`)) ? pinned : (await (await fetch("https://evermeet.cx/ffmpeg/info/ffmpeg/release")).json()).version;
+  return [`https://evermeet.cx/ffmpeg/ffmpeg-${v}.zip`, `https://evermeet.cx/ffmpeg/ffprobe-${v}.zip`];
+}
 const SOURCES = {
   "linux-x64": () => btbn("linux64", "tar.xz"),
   "linux-arm64": () => btbn("linuxarm64", "tar.xz"),
   "win32-x64": () => btbn("win64", "zip"),
   "win32-arm64": () => btbn("winarm64", "zip"),
   // evermeet.cx publishes static macOS builds (x86_64; runs on Apple silicon via Rosetta 2)
-  "darwin-x64": async () => ["https://evermeet.cx/ffmpeg/getrelease/ffmpeg/zip", "https://evermeet.cx/ffmpeg/getrelease/ffprobe/zip"],
-  "darwin-arm64": async () => ["https://evermeet.cx/ffmpeg/getrelease/ffmpeg/zip", "https://evermeet.cx/ffmpeg/getrelease/ffprobe/zip"],
+  "darwin-x64": () => evermeet(),
+  "darwin-arm64": () => evermeet(),
 };
 
 const src = SOURCES[`${platform}-${arch}`];
@@ -50,6 +56,7 @@ if (existsSync(join(dest, `ffmpeg${exe}`)) && existsSync(join(dest, `ffprobe${ex
   console.log(`FFmpeg already present in ${dest}`);
   process.exit(0);
 }
+try {
 const urls = await src();
 const tmp = join(root, ".ffmpeg-tmp");
 rmSync(tmp, { recursive: true, force: true });
@@ -88,3 +95,8 @@ const lic = find(tmp, "LICENSE.txt");
 if (lic) renameSync(lic, join(dest, "FFMPEG_LICENSE.txt"));
 rmSync(tmp, { recursive: true, force: true });
 console.log(`✓ FFmpeg bundled into ${dest}`);
+} catch (e) {
+  console.error(`::warning::FFmpeg could not be bundled (${e.message}); the build will use FFmpeg from PATH at runtime.`);
+  rmSync(join(root, ".ffmpeg-tmp"), { recursive: true, force: true });
+  process.exit(process.env.FFMPEG_STRICT ? 1 : 0);
+}
