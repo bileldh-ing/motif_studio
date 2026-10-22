@@ -1,0 +1,29 @@
+{
+  "name": "@motif/api",
+  "version": "0.3.0",
+  "private": true,
+  "type": "module",
+  "description": "MOTIF cloud API: identity, workspaces, cloud projects, signed media transfer, billing entitlements",
+  "main": "./src/app.ts",
+  "scripts": {
+    "dev": "node --experimental-strip-types src/server.ts",
+    "start": "node --experimental-strip-types src/server.ts",
+    "migrate": "node --experimental-strip-types src/migrate-cli.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.800.0",
+    "@aws-sdk/s3-request-presigner": "^3.800.0",
+    "@fastify/cors": "^11.0.0",
+    "@fastify/rate-limit": "^10.0.0",
+    "drizzle-orm": "^0.44.0",
+    "fastify": "^5.4.0",
+    "pg": "^8.16.0",
+    "stripe": "^18.0.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.15.0",
+    "embedded-postgres": "18.4.0-beta.17"
+  }
+}
