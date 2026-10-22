@@ -7,8 +7,6 @@ import { createReadStream, createWriteStream } from "node:fs";
 import { mkdir, stat, rename, rm, readFile, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { dirname, resolve, sep } from "node:path";
-import { pipeline } from "node:stream/promises";
-import { Transform, type Readable } from "node:stream";
 import { hmac, safeEqual } from "./security.ts";
 
 export interface SignedUrl {
@@ -67,27 +65,30 @@ export class LocalStorage implements Storage {
     const want = this.sign(method, key, exp, method === "PUT" ? String(q.size ?? "") : "");
     return safeEqual(want, q.sig) ? null : "bad signature";
   }
-  /** Stream an upload to disk, enforcing the signed size and computing sha256. */
-  async write(key: string, body: Readable | Buffer, maxSize: number): Promise<StoredObject> {
+  /** Stream an upload to disk, enforcing the signed size and computing sha256. Oversized bodies are drained, never stored. */
+  async write(key: string, body: AsyncIterable<Buffer> | Buffer, maxSize: number): Promise<StoredObject> {
     const dest = this.file(key);
     await mkdir(dirname(dest), { recursive: true });
     const tmp = `${dest}.part`;
     const h = createHash("sha256");
     let size = 0;
-    const meter = new Transform({
-      transform(chunk: Buffer, _e, cb) {
-        size += chunk.length;
-        if (size > maxSize) return cb(new Error("upload larger than signed size"));
-        h.update(chunk);
-        cb(null, chunk);
-      },
-    });
-    const src = Buffer.isBuffer(body) ? (await import("node:stream")).Readable.from([body]) : body;
+    let over = false;
+    const out = createWriteStream(tmp);
+    const src: AsyncIterable<Buffer> = Buffer.isBuffer(body) ? [body] : body;
     try {
-      await pipeline(src, meter, createWriteStream(tmp));
-    } catch (e) {
+      for await (const chunk of src) {
+        size += chunk.length;
+        if (size > maxSize) over = true;
+        if (over) continue; // keep draining so the client gets a clean 413
+        h.update(chunk);
+        if (!out.write(chunk)) await new Promise((r) => out.once("drain", r));
+      }
+    } finally {
+      await new Promise((r) => out.end(r));
+    }
+    if (over) {
       await rm(tmp, { force: true });
-      throw e;
+      throw new Error("upload larger than signed size");
     }
     await rename(tmp, dest);
     const sha = h.digest("hex");

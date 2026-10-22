@@ -24,6 +24,8 @@
   },
   "devDependencies": {
     "@types/pg": "^8.15.0",
-    "embedded-postgres": "18.4.0-beta.17"
+    "embedded-postgres": "18.4.0-beta.17",
+    "@motif/cloud-client": "workspace:*",
+    "@motif/project-schema": "workspace:*"
   }
 }

@@ -21,7 +21,9 @@
     "@motif/editor-core": "workspace:*",
     "@motif/project-schema": "workspace:*",
     "@motif/render-engine": "workspace:*",
-    "zod": "^3.25.0"
+    "zod": "^3.25.0",
+    "@motif/cloud-client": "workspace:*",
+    "electron-updater": "^6.6.0"
   },
   "devDependencies": {
     "@types/react": "^19.3.0",
