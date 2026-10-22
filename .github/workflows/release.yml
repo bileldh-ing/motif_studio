@@ -72,7 +72,14 @@ jobs:
             EXTRA="-c.mac.notarize=true"
           fi
           pnpm exec electron-vite build
-          pnpm exec electron-builder ${{ matrix.args }} $EXTRA --publish always
+          set -o pipefail
+          pnpm exec electron-builder ${{ matrix.args }} $EXTRA --publish always 2>&1 | tee "$RUNNER_TEMP/builder.log"
+      - name: Surface packaging errors
+        if: failure()
+        shell: bash
+        run: |
+          msg=$(grep -v '^\s*$' "$RUNNER_TEMP/builder.log" | tail -25 | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
+          echo "::error title=electron-builder::$msg"
       - name: Snap package (best effort; needs snapcraft)
         if: runner.os == 'Linux'
         continue-on-error: true

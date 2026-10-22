@@ -6,6 +6,10 @@ updates:
     open-pull-requests-limit: 5
     groups:
       minor-and-patch: { update-types: [minor, patch] }
+    ignore:
+      # majors are reviewed manually (tested toolchain: Next 15, Vitest 3, Fastify plugins v10/11)
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: weekly }
