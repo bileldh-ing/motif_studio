@@ -33,6 +33,7 @@ import * as store from "./store";
 import * as cloud from "./cloud";
 import * as ops from "./ops";
 import { runSmoke } from "./smoke";
+import { runDemo } from "./demo";
 import type { RenderDoneEvent } from "../shared/api";
 
 const here = fileURLToPath(new URL(".", import.meta.url));
@@ -497,6 +498,7 @@ function createWindow() {
   });
   win.once("ready-to-show", () => win?.show());
   if (process.env.MOTIF_SMOKE_DIR) win.webContents.once("did-finish-load", () => runSmoke(win!, process.env.MOTIF_SMOKE_DIR!));
+  if (process.env.MOTIF_DEMO_DIR) win.webContents.once("did-finish-load", () => runDemo(win!, process.env.MOTIF_DEMO_DIR!));
   // Never navigate the privileged window to remote content; open links in the browser.
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https:\/\//.test(url) || /^http:\/\/(localhost|127\.0\.0\.1)[:/]/.test(url)) shell.openExternal(url);
@@ -511,7 +513,7 @@ function createWindow() {
 }
 
 ops.installCrashHandlers(() => win);
-if (!app.requestSingleInstanceLock() && !process.env.MOTIF_SMOKE_DIR) app.quit();
+if (!process.env.MOTIF_SMOKE_DIR && !process.env.MOTIF_DEMO_DIR && !app.requestSingleInstanceLock()) app.quit();
 app.on("second-instance", () => {
   if (win) {
     if (win.isMinimized()) win.restore();

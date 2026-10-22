@@ -1,0 +1,99 @@
+name: Tutorial video
+# Records the real app driving every feature (apps/desktop/src/main/demo.ts), narrates it
+# with offline neural TTS, then edits and renders the final video with MOTIF's own engine.
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*.*.*"]
+permissions:
+  contents: write
+concurrency: { group: demo-video, cancel-in-progress: true }
+
+jobs:
+  video:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    container: debian:trixie
+    services:
+      postgres:
+        image: postgres:17
+        env: { POSTGRES_PASSWORD: postgres, POSTGRES_DB: motif }
+        options: --health-cmd "pg_isready -U postgres" --health-interval 5s --health-retries 10
+    env:
+      MOTIF_PYTHON: /opt/venv/bin/python
+      HF_HOME: /github/home/.cache/hf
+      WORK: ${{ github.workspace }}/demo-work
+    steps:
+      - name: System packages
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ffmpeg fonts-dejavu-core python3-venv ca-certificates git curl xz-utils jq gh \
+            xvfb xauth libatk1.0-0t64 libatk-bridge2.0-0t64 libgtk-3-0t64 libnss3 libgbm1 libasound2t64 libxss1 libxkbcommon0 libcups2t64 libdrm2 libxdamage1 libxrandr2 libxcomposite1 libpango-1.0-0 libcairo2
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with: { version: 10.14.0 }
+      - uses: actions/setup-node@v5
+        with: { node-version: 22, cache: pnpm }
+      - name: AI tools (Whisper + Piper neural TTS)
+        run: |
+          python3 -m venv /opt/venv
+          /opt/venv/bin/pip install --quiet faster-whisper piper-tts
+          mkdir -p /opt/voices && cd /opt/voices
+          curl -fsSL -o voice.onnx https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/ryan/high/en_US-ryan-high.onnx
+          curl -fsSL -o voice.onnx.json https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/ryan/high/en_US-ryan-high.onnx.json
+      - run: pnpm install --frozen-lockfile
+      - run: node node_modules/electron/install.js
+        working-directory: apps/desktop
+      - name: Narration
+        run: |
+          mkdir -p "$WORK" && cp scripts/demo-video/script.json "$WORK/"
+          PIPER_VOICE=/opt/voices/voice.onnx /opt/venv/bin/python scripts/demo-video/narrate.py "$WORK" scripts/demo-video/script.json
+      - name: MOTIF Cloud API (for the cloud chapter)
+        env:
+          DATABASE_URL: postgres://postgres:postgres@postgres:5432/motif
+          STORAGE_SIGNING_SECRET: demo-secret
+          STORAGE_DIR: /tmp/objects
+        run: |
+          nohup node --experimental-strip-types apps/api/src/server.ts > /tmp/api.log 2>&1 &
+          for i in $(seq 40); do curl -fsS localhost:8787/readyz && break; sleep 1; done
+          curl -fsS -X POST localhost:8787/v1/auth/signup -H 'content-type: application/json' -d '{"email":"demo@motif.studio","password":"motif-demo-password","name":"Demo"}' | jq -e .token
+      - name: Record the app
+        working-directory: apps/desktop
+        env:
+          MOTIF_DEMO_DIR: ${{ github.workspace }}/demo-work
+          MOTIF_CLOUD_URL: http://localhost:8787
+          MOTIF_DEMO_EMAIL: demo@motif.studio
+          MOTIF_DEMO_PASSWORD: motif-demo-password
+          DISPLAY: ":99"
+        run: |
+          pnpm exec electron-vite build
+          Xvfb :99 -screen 0 1920x1080x24 -nolisten tcp &
+          sleep 2
+          timeout 1500 node_modules/electron/dist/electron . --no-sandbox --disable-gpu --disable-dev-shm-usage --force-device-scale-factor=1
+          ls -la "$MOTIF_DEMO_DIR"; cat "$MOTIF_DEMO_DIR/chapters.json" | jq '.chapters | map({id, len: (.end - .start), spots: (.spots|length)})'
+      - name: Edit & render with MOTIF's engine
+        working-directory: apps/desktop
+        run: npx --yes tsx@4 scripts/demo-compose.ts "$WORK" "$WORK/MOTIF-Studio-Tutorial.mp4"
+      - name: Thumbnail & contact sheet
+        run: |
+          ffmpeg -y -loglevel error -ss 3.5 -i "$WORK/MOTIF-Studio-Tutorial.mp4" -frames:v 1 "$WORK/thumbnail.jpg"
+          D=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$WORK/MOTIF-Studio-Tutorial.mp4")
+          ffmpeg -y -loglevel error -i "$WORK/MOTIF-Studio-Tutorial.mp4" -vf "fps=16/$D,scale=480:-1,tile=4x4" -frames:v 1 "$WORK/contact-sheet.jpg"
+          ffprobe -v error -show_entries format=duration,size:stream=codec_name,width,height -of json "$WORK/MOTIF-Studio-Tutorial.mp4" | tee "$WORK/video-info.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tutorial-video
+          path: |
+            demo-work/MOTIF-Studio-Tutorial.mp4
+            demo-work/thumbnail.jpg
+            demo-work/contact-sheet.jpg
+            demo-work/chapters.json
+            demo-work/tutorial.motif
+      - name: Publish to the "tutorial" release
+        env: { GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}", GH_REPO: "${{ github.repository }}" }
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          gh release view tutorial >/dev/null 2>&1 || gh release create tutorial --prerelease --title "MOTIF Studio — tutorial video" --notes "Full feature walkthrough, recorded from the real app and edited with MOTIF's own render engine. Rebuilt by the Tutorial video workflow." --target "$GITHUB_SHA"
+          gh release upload tutorial "$WORK/MOTIF-Studio-Tutorial.mp4" "$WORK/thumbnail.jpg" "$WORK/contact-sheet.jpg" "$WORK/video-info.json" --clobber
+      - if: failure()
+        run: tail -50 /tmp/api.log || true

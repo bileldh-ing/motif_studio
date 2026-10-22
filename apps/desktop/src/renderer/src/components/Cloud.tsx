@@ -192,7 +192,10 @@ export function CloudSyncDialog({ path, project, onClose, onSynced }: { path: st
         {!status ? (
           <div className="dim">Checking…</div>
         ) : !status.signedIn ? (
-          <CloudSignIn status={status} onChange={setStatus} />
+          <>
+            <CloudSignIn status={status} onChange={setStatus} />
+            <div className="modal-actions"><button onClick={onClose}>Close</button></div>
+          </>
         ) : (
           <>
             <p className="dim">{link ? `Linked to cloud v${link.version}. Uploading saves a new version; media already in the cloud is skipped.` : "Upload this project and its media. Only changed media is transferred next time."}</p>

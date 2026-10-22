@@ -1,0 +1,19 @@
+{
+  "title": "MOTIF Studio — the complete tutorial",
+  "chapters": [
+    { "id": "home", "title": "Start a project", "narration": "This is MOTIF Studio, a local first video editor. From the home screen you pick a name, a frame rate and a canvas, from landscape to vertical. Let's open the demo project, which MOTIF builds for you on the spot." },
+    { "id": "tour", "title": "The workspace", "narration": "The workspace has four parts. Your media and tools on the left, the live preview in the middle, the inspector on the right, and a multitrack timeline at the bottom. Every panel is frosted glass and can be resized." },
+    { "id": "timeline", "title": "Timeline editing", "narration": "Press space to play. Press B for the blade and click to split a clip. Undo is always one shortcut away. Copy and paste, ripple delete, and freeze frame with the F key, which holds a frame and pushes the rest along." },
+    { "id": "canvas", "title": "Figma style canvas", "narration": "Select a layer right on the canvas. Drag to move it, and a live chip shows the exact position, just like in Figma. Snap guides lock it to the center, and handles let you scale and rotate." },
+    { "id": "filters", "title": "Filters and color", "narration": "Open filters and apply a look in one click, like Noir or Vivid. Then fine tune brightness, contrast, saturation, temperature, blur and vignette in the Adjust tab." },
+    { "id": "effects", "title": "Masks, chroma key and background", "narration": "In the Video tab you can crop and flip, fill empty space with a blurred background, cut the layer with a soft feathered mask, or remove a green screen with chroma key." },
+    { "id": "motion", "title": "Animation, keyframes and transitions", "narration": "Animations bring layers in and out with fades, slides and zooms. Transitions blend two clips together, and every transform can be keyframed with easing, right from the inspector." },
+    { "id": "text", "title": "Text and titles", "narration": "The text panel has ready made styles. Add a neon title, then change the font, size, stroke, shadow and background box. Shapes work the same way." },
+    { "id": "ai", "title": "Local AI: voice and captions", "narration": "Here is where it gets fun. Type a script and MOTIF turns it into a voice over, offline. Then auto captions transcribe it with Whisper, running on your own computer, with word level timing." },
+    { "id": "audio", "title": "Audio and cleanup tools", "narration": "Audio clips get gain, fades, noise reduction and a voice changer. You can also extract audio from a video, stabilize shaky footage, and find and remove silences automatically." },
+    { "id": "palette", "title": "Command palette", "narration": "Press control K to open the command palette. Every action in MOTIF is searchable, so you never have to hunt through menus." },
+    { "id": "export", "title": "Export up to 4K", "narration": "When you are ready, press control E. Choose any resolution up to 4K, frame rates up to sixty, and codecs like H 264, HEVC, AV1 and ProRes. You can also export a GIF, audio only, or a still frame." },
+    { "id": "cloud", "title": "MOTIF Cloud", "narration": "Finally, MOTIF Cloud is optional. Sign in, upload your project with its media, and every sync becomes a version you can restore. If two devices edit the same project, MOTIF asks you how to resolve it." }
+  ],
+  "outro": "Thanks for watching. MOTIF Studio is open source. Get it on GitHub."
+}
