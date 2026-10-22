@@ -165,9 +165,13 @@ describe("motion", () => {
     const late = px(await frame(out, 1.5), 160, 90)[0];
     expect(early).toBeLessThan(late - 80);
     const z = updateClip(r.project, r.clipId, { animIn: { kind: "zoom-in", frames: 30 } });
-    const zf = await frame(await render(z, "zoomin.mp4"), 0.1);
-    expect(px(zf, 5, 90)[0]).toBeLessThan(60); // still small: edges show background
-    expect(px(zf, 160, 90)[0]).toBeGreaterThan(100);
+    const zout = await render(z, "zoomin.mp4");
+    const zf = await frame(zout, 0.1);
+    const dbg = JSON.stringify({ c: px(zf, 160, 90), e: px(zf, 5, 90), q: px(zf, 80, 45), t3: px(await frame(zout, 0.3), 160, 90), t1: px(await frame(zout, 1.2), 160, 90) });
+    expect(px(zf, 5, 90)[0], dbg).toBeLessThan(60); // still small: edges show background
+    expect(px(zf, 160, 90)[0], dbg).toBeGreaterThan(10); // the layer is already visible at the centre
+    expect(px(await frame(zout, 0.3), 160, 90)[0], dbg).toBeGreaterThan(px(zf, 160, 90)[0]); // growing in
+    expect(px(await frame(zout, 1.2), 160, 90)[0], dbg).toBeGreaterThan(200); // fully in
   });
 
   it("rotation keyframes animate", async () => {
@@ -191,7 +195,8 @@ describe("shapes & text", () => {
     p = updateClip(t.project, t.clipId, { text: { ...findClip(t.project, t.clipId)!.clip.text!, font: "poppins", fontSize: 200, align: "top", strokeWidth: 8, strokeColor: "#00ff00", color: "#ffffff" } });
     const f = await frame(await render(p, "shape-text.mp4"), 0.5);
     expect(px(f, 160, 95)[0]).toBeGreaterThan(200); // ellipse centre
-    expect(px(f, 103, 95)[0]).toBeLessThan(50); // just outside the circle's left edge... corner area of bbox
+    expect(px(f, 112, 44)[0]).toBeLessThan(50); // corner of the bounding box, outside the circle
+    expect(px(f, 104, 92)[0]).toBeGreaterThan(200); // left edge of the circle is inside
     let white = 0;
     let green = 0;
     for (let x = 60; x < 260; x++)

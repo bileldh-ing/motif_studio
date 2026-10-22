@@ -136,10 +136,13 @@ async function makeMask(tempDir: string, name: string, w: number, h: number, sha
   const ry = Math.max(1, (h * mh) / 2);
   const x0 = w / 2 + cx * w;
   const y0 = h / 2 + cy * h;
-  const inside = shape === "ellipse" ? `lte(hypot((X-${n(x0)})/${n(rx)},(Y-${n(y0)})/${n(ry)}),1)` : `lte(abs(X-${n(x0)}),${n(rx)})*lte(abs(Y-${n(y0)}),${n(ry)})`;
+  // Analytic soft edge (no blur filter): deterministic across CPUs/SIMD paths.
+  const d = shape === "ellipse" ? `hypot((X-${n(x0)})/${n(rx)},(Y-${n(y0)})/${n(ry)})` : `max(abs(X-${n(x0)})/${n(rx)},abs(Y-${n(y0)})/${n(ry)})`;
+  const edge = Math.max(1, feather * Math.min(w, h)); // feather width in pixels
+  const r = Math.min(rx, ry);
+  const inside = `clip((1-${d})*${n(r)}/${n(edge)}+0.5,0,1)`;
   const lum = invert ? `255*(1-${inside})` : `255*${inside}`;
-  const sigma = feather * Math.min(w, h) * 0.5;
-  const vf = `format=gray,geq=lum='${lum}'${sigma > 0.5 ? `,gblur=sigma=${n(sigma)}` : ""}`;
+  const vf = `format=gray,geq=lum='${lum}'`;
   await runFfmpeg(["-y", "-f", "lavfi", "-i", `color=c=black:s=${even(w)}x${even(h)}:d=1`, "-vf", vf, "-frames:v", "1", out]);
   return out;
 }
