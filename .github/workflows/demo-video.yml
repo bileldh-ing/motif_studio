@@ -81,7 +81,7 @@ jobs:
           D=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$WORK/MOTIF-Studio-Tutorial.mp4")
           ffmpeg -y -loglevel error -i "$WORK/MOTIF-Studio-Tutorial.mp4" -vf "fps=16/$D,scale=480:-1,tile=4x4" -frames:v 1 "$WORK/contact-sheet.jpg"
           ffprobe -v error -show_entries format=duration,size:stream=codec_name,width,height -of json "$WORK/MOTIF-Studio-Tutorial.mp4" | tee "$WORK/video-info.json"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: tutorial-video
           path: |

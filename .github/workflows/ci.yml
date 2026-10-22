@@ -64,7 +64,7 @@ jobs:
       - run: ffmpeg -version | head -1
       - name: Core + render engine + effects + API + sync tests
         run: pnpm exec vitest run --reporter=default --reporter=github-actions --reporter=junit --outputFile.junit=test-results/junit.xml
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with: { name: test-results, path: test-results }
 
@@ -80,7 +80,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @motif/web build
         env: { NEXT_PUBLIC_API_URL: "https://api.motif.studio" }
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with: { name: web-static, path: apps/web/out }
 
   api-image:
@@ -133,7 +133,7 @@ jobs:
           MOTIF_SMOKE_DIR=$GITHUB_WORKSPACE/tests/output/smoke xvfb-run -a -s "-screen 0 1600x1000x24" node_modules/electron/dist/electron . --no-sandbox --disable-gpu --disable-dev-shm-usage
       - name: All smoke checks passed
         run: jq -e 'all(.[]; .ok)' tests/output/smoke/report.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with: { name: smoke-screenshots, path: tests/output/smoke }
 
@@ -182,7 +182,7 @@ jobs:
           tail -20 launch.log
           # 124 = still running when the timeout hit, i.e. the packaged app started and stayed up
           [ $code -eq 124 ] || (echo "packaged app exited early with $code" && exit 1)
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: installers-${{ runner.os }}
           path: |
