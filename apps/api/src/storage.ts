@@ -29,11 +29,14 @@ export interface Storage {
 
 export class LocalStorage implements Storage {
   kind = "local" as const;
-  constructor(
-    private root: string,
-    private publicBaseUrl: string,
-    private secret: string,
-  ) {}
+  private root: string;
+  private publicBaseUrl: string;
+  private secret: string;
+  constructor(root: string, publicBaseUrl: string, secret: string) {
+    this.root = root;
+    this.publicBaseUrl = publicBaseUrl;
+    this.secret = secret;
+  }
   private file(key: string) {
     const p = resolve(this.root, key);
     if (!p.startsWith(resolve(this.root) + sep)) throw new Error("bad key");
@@ -116,7 +119,9 @@ export class LocalStorage implements Storage {
 export class S3Storage implements Storage {
   kind = "s3" as const;
   private clientP: Promise<any>;
-  constructor(private o: { bucket: string; region: string; endpoint?: string; accessKeyId?: string; secretAccessKey?: string }) {
+  private o: { bucket: string; region: string; endpoint?: string; accessKeyId?: string; secretAccessKey?: string };
+  constructor(o: { bucket: string; region: string; endpoint?: string; accessKeyId?: string; secretAccessKey?: string }) {
+    this.o = o;
     this.clientP = import("@aws-sdk/client-s3").then(
       ({ S3Client }) =>
         new S3Client({

@@ -5,6 +5,7 @@ on:
   workflow_dispatch:
   push:
     tags: ["v*.*.*"]
+    branches: ["demo-video/**"]
 permissions:
   contents: write
 concurrency: { group: demo-video, cancel-in-progress: true }
