@@ -1,10 +1,13 @@
 {
   "name": "@motif/desktop",
   "productName": "MOTIF Studio",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "MOTIF Studio desktop video editor",
-  "author": "MOTIF Studio",
+  "author": {
+    "name": "Bilel Dhahri",
+    "email": "dhahribilel1807@gmail.com"
+  },
   "type": "module",
   "main": "./out/main/index.js",
   "scripts": {
@@ -12,10 +15,11 @@
     "build": "electron-vite build",
     "start": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "package:linux": "electron-vite build && electron-builder --linux AppImage deb",
-    "package:win": "electron-vite build && electron-builder --win nsis",
-    "package:mac": "electron-vite build && electron-builder --mac dmg",
-    "smoke": "electron-vite build && xvfb-run -a -s \"-screen 0 1600x1000x24\" electron . --no-sandbox --disable-gpu"
+    "package:linux": "electron-vite build && electron-builder --linux --publish never",
+    "package:win": "electron-vite build && electron-builder --win --publish never",
+    "package:mac": "electron-vite build && electron-builder --mac --publish never",
+    "smoke": "electron-vite build && xvfb-run -a -s \"-screen 0 1600x1000x24\" electron . --no-sandbox --disable-gpu --disable-dev-shm-usage",
+    "package:dir": "electron-vite build && electron-builder --dir --publish never"
   },
   "dependencies": {
     "@motif/editor-core": "workspace:*",
@@ -36,28 +40,5 @@
     "react-dom": "^19.3.1",
     "vite": "^7.3.7"
   },
-  "build": {
-    "appId": "studio.motif.desktop",
-    "productName": "MOTIF Studio",
-    "directories": {
-      "output": "release"
-    },
-    "files": [
-      "out/**/*"
-    ],
-    "linux": {
-      "target": [
-        "AppImage",
-        "deb"
-      ],
-      "category": "AudioVideo"
-    },
-    "win": {
-      "target": "nsis"
-    },
-    "mac": {
-      "target": "dmg",
-      "category": "public.app-category.video"
-    }
-  }
+  "homepage": "https://github.com/bileldh-ing/motif_studio"
 }

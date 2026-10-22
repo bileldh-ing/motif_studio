@@ -6,3 +6,8 @@ out
 tests/output
 *.tsbuildinfo
 release
+apps/desktop/resources/ffmpeg/*/
+.ffmpeg-tmp/
+apps/web/out/
+apps/web/.next/
+apps/desktop/release/

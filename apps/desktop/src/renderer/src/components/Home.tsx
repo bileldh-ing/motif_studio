@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { AppInfo, OpenedProject, RecentProject } from "../../../shared/api";
+import { CloudHome, UpdateBadge } from "./Cloud";
 
 const ASPECTS = [
   { key: "16:9", label: "Landscape", hint: "YouTube, tutorials" },
@@ -29,6 +30,7 @@ export function Home({ onOpen }: { onOpen: (o: OpenedProject) => void }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [recovery, setRecovery] = useState<{ path: string; at: string } | null>(null);
+  const [view, setView] = useState<"projects" | "cloud">("projects");
 
   const refresh = () => window.motif.listRecent().then(setRecent).catch((e) => setErr(e.message));
   useEffect(() => {
@@ -66,11 +68,12 @@ export function Home({ onOpen }: { onOpen: (o: OpenedProject) => void }) {
           <span className="brand-txt"><b>MOTIF</b><small>Video Studio</small></span>
         </div>
         <nav>
-          <button className="nav-item active">Projects</button>
-          <button className="nav-item" disabled title="Cloud projects need a MOTIF account (coming in Phase 7)">Cloud projects</button>
+          <button className={"nav-item" + (view === "projects" ? " active" : "")} onClick={() => setView("projects")}>Projects</button>
+          <button className={"nav-item" + (view === "cloud" ? " active" : "")} onClick={() => setView("cloud")}>Cloud projects</button>
           <button className="nav-item" disabled title="AI generation needs a provider key (Phase 6)">AI create</button>
         </nav>
         <div className="side-foot">
+          <UpdateBadge />
           {info ? (
             <>
               <div>v{info.version} · {info.platform}</div>
@@ -84,6 +87,7 @@ export function Home({ onOpen }: { onOpen: (o: OpenedProject) => void }) {
       </aside>
 
       <main className="home-main">
+        {view === "cloud" ? <CloudHome onOpen={onOpen} /> : <>
         <section className="new-card glass-panel">
           <h1>Start something new</h1>
           <p className="dim">Local-first editing with AI captions, 4K export and studio-grade tools. Nothing leaves your machine.</p>
@@ -179,6 +183,7 @@ export function Home({ onOpen }: { onOpen: (o: OpenedProject) => void }) {
             </div>
           )}
         </section>
+        </>}
       </main>
 
       {recovery && (

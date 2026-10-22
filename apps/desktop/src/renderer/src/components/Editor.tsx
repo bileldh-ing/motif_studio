@@ -40,7 +40,10 @@ interface Cmd {
   run: () => void;
 }
 
+import { CloudSyncDialog } from "./Cloud";
+
 export function Editor({ session, onClose }: { session: EditorSession; onClose: () => void }) {
+  const [showCloud, setShowCloud] = useState(false);
   const { project, ui } = useSession(session);
   const [leftW, setLeftW] = useState(360);
   const [rightW, setRightW] = useState(320);
@@ -316,6 +319,7 @@ export function Editor({ session, onClose }: { session: EditorSession; onClose: 
         )}
         <button className="icon-btn" disabled={!h.canUndo} title={h.undoLabel ? `Undo ${h.undoLabel}` : "Undo"} onClick={() => command("undo")}><Icon name="undo" /></button>
         <button className="icon-btn" disabled={!h.canRedo} title={h.redoLabel ? `Redo ${h.redoLabel}` : "Redo"} onClick={() => command("redo")}><Icon name="redo" /></button>
+        <button className="cloud-btn" title="MOTIF Cloud: upload, sync and version history" onClick={() => setShowCloud(true)}>☁ Cloud</button>
         <button className="export-btn" onClick={() => command("export")}><Icon name="export" size={16} /> Export</button>
       </header>
 
@@ -330,6 +334,7 @@ export function Editor({ session, onClose }: { session: EditorSession; onClose: 
       <Timeline session={session} />
 
       {ui.showExport && <ExportDialog session={session} />}
+      {showCloud && <CloudSyncDialog path={session.path} project={project} onClose={() => setShowCloud(false)} onSynced={(m) => { session.setUi({ dirty: false, savedAt: new Date().toISOString() }); session.toast(m, "ok"); }} />}
       {ui.showPalette && <CommandPalette cmds={cmds} onClose={() => session.setUi({ showPalette: false })} />}
       {ui.showShortcuts && (
         <div className="modal-back" onMouseDown={(e) => e.target === e.currentTarget && session.setUi({ showShortcuts: false })}>

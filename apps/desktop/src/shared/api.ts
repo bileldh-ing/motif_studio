@@ -69,6 +69,34 @@ export interface SilenceRange {
   endSec: number;
 }
 
+export interface CloudLink {
+  server: string;
+  workspaceId: string;
+  projectId: string;
+  version: number;
+}
+export interface CloudWorkspace {
+  id: string;
+  name: string;
+  plan: string;
+  role: "owner" | "editor" | "viewer";
+}
+export interface CloudStatus {
+  server: string;
+  keychain: boolean;
+  signedIn: boolean;
+  offline?: boolean;
+  error?: string;
+  user?: { id: string; email: string; name: string };
+  workspaces?: CloudWorkspace[];
+}
+export type UpdateState =
+  | { state: "disabled"; reason: string }
+  | { state: "idle" | "checking" | "none" }
+  | { state: "available" | "downloading"; version: string; percent?: number }
+  | { state: "ready"; version: string }
+  | { state: "error"; message: string };
+
 export interface MotifApi {
   appInfo(): Promise<AppInfo>;
   getSettings(): Promise<Settings>;
@@ -115,6 +143,29 @@ export interface MotifApi {
   onJobProgress(cb: (e: { jobId: string; fraction: number }) => void): () => void;
   onJobDone(cb: (e: { jobId: string; ok: boolean; cancelled?: boolean; error?: string; result?: any }) => void): () => void;
   voices(): Promise<{ id: string; label: string }[]>;
+
+  // MOTIF Cloud (optional)
+  cloudStatus(): Promise<CloudStatus>;
+  cloudSetServer(url: string): Promise<CloudStatus>;
+  cloudLogin(email: string, password: string): Promise<CloudStatus>;
+  cloudDeviceStart(): Promise<{ userCode: string; verificationUrl: string }>;
+  cloudDeviceCancel(): Promise<void>;
+  cloudLogout(): Promise<CloudStatus>;
+  cloudProjects(workspaceId: string): Promise<{ id: string; title: string; headVersion: number; updatedAt: string }[]>;
+  cloudVersions(projectId: string): Promise<{ version: number; message: string; createdAt: string }[]>;
+  cloudLink(projectPath: string): Promise<CloudLink | null>;
+  cloudUpload(projectPath: string, project: Project, o: { workspaceId: string; message?: string; force?: boolean; asNew?: boolean }): Promise<{ ok: true; link: CloudLink } | { ok: false; conflict: true; message: string }>;
+  cloudDownload(projectId: string, version?: number): Promise<OpenedProject>;
+  onCloudProgress(cb: (p: { stage: string; done: number; total: number; name?: string }) => void): () => void;
+  onCloudSignedIn(cb: (e: { ok: boolean; error?: string }) => void): () => void;
+
+  // release operations
+  diagnostics(): Promise<string | null>;
+  updateState(): Promise<UpdateState>;
+  checkForUpdates(): Promise<UpdateState>;
+  installUpdate(): Promise<void>;
+  openLogs(): Promise<void>;
+  onUpdate(cb: (s: UpdateState) => void): () => void;
 
   onMenu(cb: (command: string) => void): () => void;
   pathForFile(file: File): string;

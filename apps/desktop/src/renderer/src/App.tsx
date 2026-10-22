@@ -18,6 +18,21 @@ export function App() {
     setSession(s);
   };
 
+  useEffect(
+    () =>
+      window.motif.onMenu(async (cmd) => {
+        if (cmd === "diagnostics") {
+          const p = await window.motif.diagnostics();
+          if (p) alert(`Diagnostic bundle saved to\n${p}\n\nIt contains versions, tool status and logs, never your media or project contents.`);
+        }
+        if (cmd === "updates") {
+          const s = await window.motif.checkForUpdates();
+          alert(s.state === "disabled" ? s.reason : s.state === "none" ? "MOTIF is up to date." : s.state === "error" ? `Update check failed: ${s.message}` : s.state === "ready" ? `Version ${s.version} is ready. Restart to install.` : "Checking for updates…");
+        }
+      }),
+    [],
+  );
+
   useEffect(() => {
     const onErr = (e: ErrorEvent) => setError(e.message);
     window.addEventListener("error", onErr);

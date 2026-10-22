@@ -25,9 +25,13 @@ import {
   stabilize,
   extractAudio,
   FLITE_VOICES,
+  setToolPaths,
+  getToolPaths,
 } from "@motif/render-engine";
 import { execFile } from "node:child_process";
 import * as store from "./store";
+import * as cloud from "./cloud";
+import * as ops from "./ops";
 import { runSmoke } from "./smoke";
 import type { RenderDoneEvent } from "../shared/api";
 
@@ -55,6 +59,14 @@ function transcribeScript(): string | undefined {
   return c.find((f) => existsSync(f));
 }
 const genDir = (...p: string[]) => store.userDir("generated", ...p);
+/** Release builds ship FFmpeg in resources/ffmpeg; env vars and PATH remain overrides for developers. */
+function useBundledFfmpeg() {
+  const exe = process.platform === "win32" ? ".exe" : "";
+  const dir = join(process.resourcesPath ?? "", "ffmpeg");
+  if (!process.env.MOTIF_FFMPEG && existsSync(join(dir, `ffmpeg${exe}`))) setToolPaths({ ffmpeg: join(dir, `ffmpeg${exe}`) });
+  if (!process.env.MOTIF_FFPROBE && existsSync(join(dir, `ffprobe${exe}`))) setToolPaths({ ffprobe: join(dir, `ffprobe${exe}`) });
+}
+useBundledFfmpeg();
 function sendJob(ch: string, payload: unknown) {
   win?.webContents.send(ch, payload);
 }
@@ -73,7 +85,7 @@ async function aiStatus() {
   if (aiStatusCache) return aiStatusCache;
   const py = process.env.MOTIF_PYTHON || (process.platform === "win32" ? "python" : "python3");
   const whisper = await new Promise<boolean>((res) => execFile(py, ["-c", "import faster_whisper"], { windowsHide: true }, (err) => res(!err)));
-  const filters = await new Promise<string>((res) => execFile("ffmpeg", ["-hide_banner", "-filters"], { maxBuffer: 4 << 20 }, (err, out) => res(err ? "" : out)));
+  const filters = await new Promise<string>((res) => execFile(getToolPaths().ffmpeg, ["-hide_banner", "-filters"], { maxBuffer: 4 << 20 }, (err, out) => res(err ? "" : out)));
   aiStatusCache = {
     whisper,
     python: py,
@@ -369,6 +381,39 @@ function registerIpc() {
     if (existsSync(p)) shell.showItemInFolder(p);
   });
 
+  // ---------------------------------------------------------------- cloud (optional; local-only when signed out)
+  const cloudProgress = (p: unknown) => win?.webContents.send("cloud:progress", p);
+  handle("cloud:status", [], () => cloud.status());
+  handle("cloud:setServer", [z.string().url().max(300)], (u) => cloud.setServer(u));
+  handle("cloud:login", [z.string().email().max(200), z.string().min(1).max(200)], (e, p) => cloud.login(e, p));
+  handle("cloud:deviceStart", [], () => cloud.deviceStart((ok, error) => win?.webContents.send("cloud:signedIn", { ok, error })));
+  handle("cloud:deviceCancel", [], () => cloud.deviceCancel());
+  handle("cloud:logout", [], () => cloud.logout());
+  handle("cloud:projects", [z.string().max(64)], (ws) => cloud.listProjects(ws));
+  handle("cloud:versions", [z.string().max(64)], (id) => cloud.versions(id));
+  handle("cloud:link", [z.string()], (p) => cloud.getLink(p));
+  handle(
+    "cloud:upload",
+    [z.string(), ProjectSchema, z.object({ workspaceId: z.string().max(64), message: z.string().max(200).optional(), force: z.boolean().optional(), asNew: z.boolean().optional() })],
+    async (path, project, o) => {
+      await store.saveProject(path, project);
+      return cloud.upload(path, project, o, cloudProgress);
+    },
+  );
+  handle("cloud:download", [z.string().max(64), z.number().int().min(1).optional()], async (id, v) => {
+    const r = await cloud.download(id, v, cloudProgress);
+    const opened = await store.openProject(r.path);
+    registerProjectAssets(opened.project);
+    return opened;
+  });
+
+  // ---------------------------------------------------------------- release ops
+  handle("ops:diagnostics", [], async () => ops.diagnosticsBundle(win!, { ffmpeg: await ffmpegVersion(), ai: await aiStatus(), cloud: await cloud.status().then((s) => ({ server: s.server, signedIn: s.signedIn })).catch(() => null) }));
+  handle("ops:update:get", [], () => ops.getUpdateState());
+  handle("ops:update:check", [], () => ops.checkForUpdates());
+  handle("ops:update:install", [], () => ops.installUpdate());
+  handle("ops:openLogs", [], () => shell.openPath(store.userDir("logs")));
+
   handle("captions:importDialog", [], async () => {
     const res = await dialog.showOpenDialog(win!, { properties: ["openFile"], filters: [{ name: "Subtitles", extensions: ["srt"] }] });
     if (res.canceled || !res.filePaths[0]) return null;
@@ -417,7 +462,17 @@ function buildMenu() {
       ],
     },
     { label: "View", submenu: [{ role: "togglefullscreen" }, { role: "resetZoom" }, { role: "zoomIn" }, { role: "zoomOut" }, ...(app.isPackaged ? [] : [{ role: "toggleDevTools" as const }])] },
-    { label: "Help", submenu: [{ label: "Keyboard Shortcuts", accelerator: "CmdOrCtrl+/", click: send("shortcuts") }] },
+    {
+      label: "Help",
+      submenu: [
+        { label: "Keyboard Shortcuts", accelerator: "CmdOrCtrl+/", click: send("shortcuts") },
+        { label: "Check for Updates…", click: send("updates") },
+        { type: "separator" },
+        { label: "Save Diagnostic Bundle…", click: send("diagnostics") },
+        { label: "Open Logs Folder", click: () => shell.openPath(store.userDir("logs")) },
+        { label: "Privacy: no telemetry is collected", enabled: false },
+      ],
+    },
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
@@ -444,7 +499,7 @@ function createWindow() {
   if (process.env.MOTIF_SMOKE_DIR) win.webContents.once("did-finish-load", () => runSmoke(win!, process.env.MOTIF_SMOKE_DIR!));
   // Never navigate the privileged window to remote content; open links in the browser.
   win.webContents.setWindowOpenHandler(({ url }) => {
-    if (/^https:\/\//.test(url)) shell.openExternal(url);
+    if (/^https:\/\//.test(url) || /^http:\/\/(localhost|127\.0\.0\.1)[:/]/.test(url)) shell.openExternal(url);
     return { action: "deny" };
   });
   win.webContents.on("will-navigate", (e, url) => {
@@ -455,11 +510,21 @@ function createWindow() {
   else win.loadFile(join(here, "../renderer/index.html"));
 }
 
+ops.installCrashHandlers(() => win);
+if (!app.requestSingleInstanceLock() && !process.env.MOTIF_SMOKE_DIR) app.quit();
+app.on("second-instance", () => {
+  if (win) {
+    if (win.isMinimized()) win.restore();
+    win.focus();
+  }
+});
+
 app.whenReady().then(() => {
   registerMediaProtocol();
   registerIpc();
   buildMenu();
   createWindow();
+  void ops.initUpdater((st) => win?.webContents.send("ops:update", st));
   app.on("activate", () => BrowserWindow.getAllWindows().length === 0 && createWindow());
 });
 

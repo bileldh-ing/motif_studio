@@ -1,0 +1,105 @@
+# MOTIF Studio packaging. Signing/notarization activate only when the matching
+# secrets exist in CI (see docs/RELEASE.md); otherwise builds are produced and
+# clearly labelled unsigned.
+appId: studio.motif.desktop
+productName: MOTIF Studio
+copyright: Copyright © 2026 Bilel Dhahri
+artifactName: "MOTIF-Studio-${version}-${os}-${arch}.${ext}"
+directories:
+  output: release
+  buildResources: build
+files:
+  - out/**/*
+  - package.json
+  - "!**/*.map"
+asar: true
+extraResources:
+  - from: src/renderer/public/fonts
+    to: fonts
+  - from: ../../packages/render-engine/ai
+    to: ai
+    filter: ["*.py"]
+  - from: resources/ffmpeg/${platform}-${arch}
+    to: ffmpeg
+    filter: ["**/*"]
+  - from: ../../THIRD_PARTY_NOTICES.md
+    to: THIRD_PARTY_NOTICES.md
+fileAssociations:
+  - ext: motif
+    name: MOTIF Project
+    description: MOTIF Studio project
+    mimeType: application/x-motif-project
+    role: Editor
+protocols:
+  - name: MOTIF Studio
+    schemes: [motif]
+publish:
+  - provider: github
+    owner: bileldh-ing
+    repo: motif_studio
+    releaseType: draft
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: appx
+      arch: [x64]
+  icon: build/icon.png
+  verifyUpdateCodeSignature: true
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  deleteAppDataOnUninstall: false
+appx:
+  # Values come from Partner Center (Microsoft Store) → Product identity.
+  identityName: ${env.MS_STORE_IDENTITY_NAME}
+  publisher: ${env.MS_STORE_PUBLISHER}
+  publisherDisplayName: Bilel Dhahri
+  displayName: MOTIF Studio
+  applicationId: MOTIFStudio
+  backgroundColor: "#0e0f12"
+  languages: [en-US, fr-FR]
+
+mac:
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+    - target: zip
+      arch: [arm64, x64]
+  category: public.app-category.video
+  icon: build/icon.png
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  notarize: false # enabled in CI via APPLE_* secrets (electron-builder reads APPLE_API_KEY / APPLE_ID)
+mas:
+  entitlements: build/entitlements.mas.plist
+  entitlementsInherit: build/entitlements.mas.inherit.plist
+  hardenedRuntime: false
+  provisioningProfile: build/embedded.provisionprofile
+dmg:
+  sign: false
+
+linux:
+  target:
+    - target: AppImage
+      arch: [x64, arm64]
+    - target: deb
+      arch: [x64, arm64]
+    - target: snap
+      arch: [x64]
+  category: AudioVideo;Video;AudioVideoEditing
+  icon: build/icon.png
+  synopsis: Local-first video editor with AI captions and 4K export
+  description: MOTIF Studio is a local-first desktop video editor with multitrack timeline, effects, on-device AI captions and verified 4K export.
+  maintainer: Bilel Dhahri <dhahribilel1807@gmail.com>
+deb:
+  depends: [libgtk-3-0, libnss3, libxss1, libasound2]
+snap:
+  grade: stable
+  confinement: strict
+  plugs: [default, home, removable-media, audio-playback, opengl, network]
