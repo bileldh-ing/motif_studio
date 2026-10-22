@@ -41,7 +41,7 @@ if (!existsSync(music)) {
 let p: Project = createProject({ title: "MOTIF Studio — the complete tutorial", fps: { num: FPS, den: 1 } });
 p.tracks = [
   { id: "bg", kind: "video", name: "Background", hidden: false, muted: false, solo: false, locked: false, volumeDb: 0, clips: [] },
-  { id: "deco", kind: "video", name: "Shapes", hidden: false, muted: false, solo: false, locked: false, volumeDb: 0, clips: [] },
+  ...["deco1", "deco2", "deco3", "bar"].map((id) => ({ id, kind: "video" as const, name: id, hidden: false, muted: false, solo: false, locked: false, volumeDb: 0, clips: [] })),
   { id: "screen", kind: "video", name: "Screen", hidden: false, muted: false, solo: false, locked: false, volumeDb: 0, clips: [] },
   { id: "titles", kind: "text", name: "Titles", hidden: false, muted: false, solo: false, locked: false, volumeDb: 0, clips: [] },
   { id: "titles2", kind: "text", name: "Subtitles", hidden: false, muted: false, solo: false, locked: false, volumeDb: 0, clips: [] },
@@ -65,8 +65,8 @@ const text = (track: string, start: number, dur: number, content: string, style:
   p = updateClip(r.project, r.clipId, { text: { ...c.text!, ...style }, ...extra } as any);
   return r.clipId;
 };
-const shape = (start: number, dur: number, type: "rect" | "ellipse", fill: string, w: number, h: number, extra: Record<string, unknown>) => {
-  const r = insertShapeClip(p, { trackId: "deco", start, duration: dur, type, fill, w, h });
+const shape = (start: number, dur: number, type: "rect" | "ellipse", fill: string, w: number, h: number, extra: Record<string, unknown>, trackId = "bar") => {
+  const r = insertShapeClip(p, { trackId, start, duration: dur, type, fill, w, h });
   p = updateClip(r.project, r.clipId, extra as any);
 };
 
@@ -78,14 +78,15 @@ p = insertMediaClip(p, { trackId: "bg", assetId: bgA.id, start: 0, duration: f(t
 }
 
 // ---------------------------------------------------------------- intro
-const orb = (dx: number, dy: number, color: string, delay: number) =>
-  shape(f(delay), f(INTRO - delay), "ellipse", color, 300, 300, { transform: { x: dx, y: dy, scale: 1, rotation: 0, opacity: 0.85 }, animIn: { kind: "zoom-in", frames: 18 }, animOut: { kind: "fade", frames: 12 } });
-orb(0, -230, "#29c6ff", 0.2);
-orb(-95, -110, "#ff7a3d", 0.45);
-orb(95, -110, "#ff4f6d", 0.7);
+const orb = (track: string, start: number, dur: number, dx: number, dy: number, color: string, size = 230) =>
+  shape(f(start), f(dur), "ellipse", color, size, size, { transform: { x: dx, y: dy, scale: 1, rotation: 0, opacity: 0.88 }, animIn: { kind: "zoom-in", frames: 18 }, animOut: { kind: "fade", frames: 12 } }, track);
+// the MOTIF mark: three overlapping orbs popping in one after another
+orb("deco1", 0.2, INTRO - 0.2, 0, -250, "#29c6ff");
+orb("deco2", 0.45, INTRO - 0.45, -85, -120, "#ff7a3d");
+orb("deco3", 0.7, INTRO - 0.7, 85, -120, "#ff4f6d");
 text("titles", f(1.0), f(INTRO - 1.0), "MOTIF STUDIO", { font: "bebas", fontSize: 210, color: "#ffffff", strokeWidth: 0, shadow: true }, { transform: { x: 0, y: 150, scale: 1, rotation: 0, opacity: 1 }, animIn: { kind: "zoom-in", frames: 16 }, animOut: { kind: "fade", frames: 12 } });
 text("titles2", f(1.7), f(INTRO - 1.7), "The complete tutorial  ·  every feature in one video", { font: "poppins", fontSize: 44, color: "#c4b5fd", shadow: false }, { transform: { x: 0, y: 300, scale: 1, rotation: 0, opacity: 1 }, animIn: { kind: "slide-up", frames: 14 }, animOut: { kind: "fade", frames: 12 } });
-text("labels", f(2.4), f(INTRO - 2.4), "  v0.3  ·  open source  ·  local-first  ", { font: "poppins", fontSize: 28, color: "#e9e7ff", boxColor: "#5b21b6", boxOpacity: 0.55, shadow: false, align: "top" }, { transform: { x: 0, y: 60, scale: 1, rotation: 0, opacity: 1 }, animIn: { kind: "fade", frames: 12 }, animOut: { kind: "fade", frames: 10 } });
+text("labels", f(2.4), f(INTRO - 2.4), "  v0.3  ·  open source  ·  local-first  ", { font: "poppins", fontSize: 28, color: "#ffffff", boxColor: "#7c3aed", boxOpacity: 0.85, shadow: false, align: "top" }, { transform: { x: 0, y: 60, scale: 1, rotation: 0, opacity: 1 }, animIn: { kind: "fade", frames: 12 }, animOut: { kind: "fade", frames: 10 } });
 
 // ---------------------------------------------------------------- chapters
 const BASE = 0.86;
@@ -172,7 +173,9 @@ for (const [i, s] of segs.entries()) {
 }
 
 // ---------------------------------------------------------------- outro
-orb(-560, -40, "#29c6ff", 0);
+orb("deco1", t, OUTRO, -70, -300, "#29c6ff", 120);
+orb("deco2", t + 0.2, OUTRO - 0.2, -35, -240, "#ff7a3d", 120);
+orb("deco3", t + 0.4, OUTRO - 0.4, 35, -240, "#ff4f6d", 120);
 text("titles", f(t + 0.2), f(OUTRO - 0.2), "Thanks for watching", { font: "bebas", fontSize: 150, color: "#ffffff", shadow: true }, { transform: { x: 0, y: -80, scale: 1, rotation: 0, opacity: 1 }, animIn: { kind: "slide-up", frames: 14 }, animOut: { kind: "fade", frames: 18 } });
 text("titles2", f(t + 0.8), f(OUTRO - 0.8), "github.com/bileldh-ing/motif_studio", { font: "poppins", fontSize: 52, color: "#c4b5fd", boxColor: "#1b1430", boxOpacity: 0.7, shadow: false }, { transform: { x: 0, y: 80, scale: 1, rotation: 0, opacity: 1 }, animIn: { kind: "zoom-in", frames: 14 }, animOut: { kind: "fade", frames: 18 } });
 text("labels", f(t + 1.4), f(OUTRO - 1.4), "Edited and rendered with MOTIF Studio itself", { font: "poppins", fontSize: 30, color: "#9a9cab", shadow: false }, { transform: { x: 0, y: 190, scale: 1, rotation: 0, opacity: 1 }, animIn: { kind: "fade", frames: 14 }, animOut: { kind: "fade", frames: 18 } });
