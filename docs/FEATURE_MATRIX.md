@@ -29,3 +29,22 @@
 | Export | Batch queue, hardware encoders, ProRes UI | planned |
 | SaaS | Web app, API, auth, billing, sync, admin | not started |
 | Release | electron-builder configs | partial (unsigned) |
+
+## v0.3 additions (Phase 7–8)
+
+| Feature | Status | Acceptance / tests |
+|---|---|---|
+| Email/password accounts (scrypt), sessions (hashed tokens), logout | Done | api.test identity |
+| Desktop device sign-in (browser approval code) | Done | api.test device flow, sync.test |
+| Workspaces, owner/editor/viewer roles, seat limits | Done | api.test roles/seats |
+| Tenant isolation (404 for non-members) | Done | api.test isolation, sync.test |
+| Cloud project versions, optimistic concurrency (409), restore | Done | api.test, sync.test conflict |
+| Signed media upload/download (HMAC local, S3 SigV4), SHA-256 integrity, dedupe, quotas | Done (S3 driver not integration-tested) | api.test media, sync.test tamper |
+| Plans, entitlements, usage ledger (idempotent) | Done | api.test billing |
+| Stripe checkout/portal, signed idempotent webhooks | Done (needs Stripe keys to go live) | api.test webhooks |
+| Audit log, admin stats/users/plan override | Done | api.test audit |
+| Web app: marketing, auth, projects/history/restore, plan & usage, team, device approval, admin | Done | CI next build |
+| Desktop Cloud UI: sign in, upload/sync, conflict dialog, open any version | Done | smoke (signed-out), sync.test (client) |
+| Installers: NSIS, appx, dmg/zip, AppImage, deb, snap; bundled FFmpeg | Done (unsigned) | CI package + packaged launch check |
+| Auto-update (GitHub Releases), crash log + renderer recovery, diagnostics bundle, single instance, file association | Done | smoke (updater state) |
+| Email verification, MFA, account deletion API | Planned | — |
