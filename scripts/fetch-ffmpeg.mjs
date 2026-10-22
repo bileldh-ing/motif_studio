@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Downloads static FFmpeg/FFprobe 7.1 builds for packaging into
+ * Downloads static FFmpeg/FFprobe release builds (newest nX.Y GPL release from BtbN) for packaging into
  * apps/desktop/resources/ffmpeg/<platform>-<arch>/. MOTIF invokes them as
  * separate programs (no linking); see THIRD_PARTY_NOTICES.md for licensing.
  *
@@ -17,19 +17,31 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const platform = process.argv[2] ?? process.platform;
 const arch = process.argv[3] ?? process.arch;
 const dest = join(root, "apps/desktop/resources/ffmpeg", `${platform}-${arch}`);
-const BTBN = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest";
+const BTBN_API = "https://api.github.com/repos/BtbN/FFmpeg-Builds/releases/latest";
+async function btbn(plat, ext) {
+  const r = await fetch(BTBN_API, { headers: { accept: "application/vnd.github+json", ...(process.env.GITHUB_TOKEN ? { authorization: `Bearer ${process.env.GITHUB_TOKEN}` } : {}) } });
+  if (!r.ok) throw new Error(`BtbN release lookup failed: ${r.status}`);
+  const assets = (await r.json()).assets.map((a) => a.browser_download_url);
+  const re = new RegExp(`/ffmpeg-n(\\d+)\\.(\\d+)-latest-${plat}-gpl-\\d+\\.\\d+\\.${ext.replace(".", "\\.")}$`);
+  // newest release line up to the major version MOTIF is tested against (FFMPEG_MAX_MAJOR, default 8)
+  const max = Number(process.env.FFMPEG_MAX_MAJOR ?? 8);
+  const pick = assets.filter((u) => re.test(u) && Number(u.match(re)[1]) <= max).sort((a, b) => { const [, a1, a2] = a.match(re); const [, b1, b2] = b.match(re); return b1 - a1 || b2 - a2; })[0];
+  if (!pick) throw new Error(`no BtbN build for ${plat}`);
+  return [pick];
+}
 const SOURCES = {
-  "linux-x64": [`${BTBN}/ffmpeg-n7.1-latest-linux64-gpl-7.1.tar.xz`],
-  "linux-arm64": [`${BTBN}/ffmpeg-n7.1-latest-linuxarm64-gpl-7.1.tar.xz`],
-  "win32-x64": [`${BTBN}/ffmpeg-n7.1-latest-win64-gpl-7.1.zip`],
-  // evermeet.cx publishes signed static macOS builds (x86_64; runs on Apple silicon via Rosetta 2)
-  "darwin-x64": ["https://evermeet.cx/ffmpeg/getrelease/ffmpeg/zip", "https://evermeet.cx/ffmpeg/getrelease/ffprobe/zip"],
-  "darwin-arm64": ["https://evermeet.cx/ffmpeg/getrelease/ffmpeg/zip", "https://evermeet.cx/ffmpeg/getrelease/ffprobe/zip"],
+  "linux-x64": () => btbn("linux64", "tar.xz"),
+  "linux-arm64": () => btbn("linuxarm64", "tar.xz"),
+  "win32-x64": () => btbn("win64", "zip"),
+  "win32-arm64": () => btbn("winarm64", "zip"),
+  // evermeet.cx publishes static macOS builds (x86_64; runs on Apple silicon via Rosetta 2)
+  "darwin-x64": async () => ["https://evermeet.cx/ffmpeg/getrelease/ffmpeg/zip", "https://evermeet.cx/ffmpeg/getrelease/ffprobe/zip"],
+  "darwin-arm64": async () => ["https://evermeet.cx/ffmpeg/getrelease/ffmpeg/zip", "https://evermeet.cx/ffmpeg/getrelease/ffprobe/zip"],
 };
 
-const urls = SOURCES[`${platform}-${arch}`];
+const src = SOURCES[`${platform}-${arch}`];
 mkdirSync(dest, { recursive: true });
-if (!urls) {
+if (!src) {
   console.warn(`No bundled FFmpeg for ${platform}-${arch}; the app will use FFmpeg from PATH.`);
   process.exit(0);
 }
@@ -38,6 +50,7 @@ if (existsSync(join(dest, `ffmpeg${exe}`)) && existsSync(join(dest, `ffprobe${ex
   console.log(`FFmpeg already present in ${dest}`);
   process.exit(0);
 }
+const urls = await src();
 const tmp = join(root, ".ffmpeg-tmp");
 rmSync(tmp, { recursive: true, force: true });
 mkdirSync(tmp, { recursive: true });
