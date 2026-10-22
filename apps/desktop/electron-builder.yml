@@ -57,8 +57,10 @@ nsis:
   deleteAppDataOnUninstall: false
 appx:
   # Values come from Partner Center (Microsoft Store) → Product identity.
-  identityName: ${env.MS_STORE_IDENTITY_NAME}
-  publisher: ${env.MS_STORE_PUBLISHER}
+  # identityName / publisher come from Partner Center and are passed by CI:
+  #   -c.appx.identityName=$MS_STORE_IDENTITY_NAME -c.appx.publisher=$MS_STORE_PUBLISHER
+  identityName: MOTIFStudio.Dev
+  publisher: CN=MOTIF Studio Dev
   publisherDisplayName: Bilel Dhahri
   displayName: MOTIF Studio
   applicationId: MOTIFStudio

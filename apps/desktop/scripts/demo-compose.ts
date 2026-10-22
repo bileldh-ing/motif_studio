@@ -186,14 +186,24 @@ if (existsSync(ov)) {
 }
 
 await writeFile(join(dir, "tutorial.motif"), JSON.stringify(p, null, 2));
-const preset = { id: "tutorial", name: "Tutorial 1080p30", kind: "video", container: "mp4", videoCodec: "libx264", audioCodec: "aac", width: 1920, height: 1080, fps: { num: FPS, den: 1 }, crf: 19, audioBitrateK: 192, preset: "medium" } as any;
+if (process.env.MOTIF_COMPOSE_DRY) { console.log("dry run ok", p.tracks.map((t) => `${t.id}:${t.clips.length}`).join(" ")); process.exit(0); }
+const preset = { id: "tutorial", name: "Tutorial 1080p30", kind: "video", container: "mp4", videoCodec: "libx264", audioCodec: "aac", width: 1920, height: 1080, fps: { num: FPS, den: 1 }, crf: 19, audioBitrateK: 192, preset: process.env.MOTIF_COMPOSE_PRESET ?? "medium" } as any;
 let last = -1;
+process.on("unhandledRejection", (e: any) => {
+  const tail = String(e?.stderrTail ?? e?.stack ?? e).split("\n").filter((l) => !/No accelerated colorspace/.test(l)).slice(-15).join("%0A");
+  console.error(`::error title=compose::${e?.message}%0A${tail}`);
+  process.exit(1);
+});
 const r = await renderProject(p, preset, { outputPath: out, fontDir }, {
+  onLog: (l) => /error|invalid|failed/i.test(l) && console.error("[ffmpeg]", l.slice(0, 400)),
   onProgress: (fr) => {
     const pc = Math.floor(fr * 100);
     if (pc !== last && pc % 5 === 0) console.log(`render ${pc}%`), (last = pc);
   },
 });
 console.log(JSON.stringify({ out: r.outputPath, ok: r.verification.ok, problems: r.verification.problems, seconds: total, chapters: segs.length, elapsedMs: r.elapsedMs }));
-if (!r.verification.ok) process.exit(1);
+if (!r.verification.ok) {
+  console.error(`::error title=verify::${r.verification.problems.join("; ")}`);
+  process.exit(1);
+}
 void newId;
