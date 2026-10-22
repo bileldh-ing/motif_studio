@@ -240,5 +240,6 @@ export function UpdateBadge() {
   if (!s || s.state === "disabled" || s.state === "idle" || s.state === "none" || s.state === "checking") return null;
   if (s.state === "ready") return <button className="update-pill" onClick={() => window.motif.installUpdate()}>Restart to update to {s.version}</button>;
   if (s.state === "error") return null;
-  return <span className="update-pill">Downloading {s.version}{s.state === "downloading" && s.percent != null ? ` ${s.percent}%` : ""}</span>;
+  const d = s as { version: string; percent?: number };
+  return <span className="update-pill">Downloading {d.version}{d.percent != null ? ` ${d.percent}%` : ""}</span>;
 }

@@ -171,7 +171,7 @@ export async function uploadProject(
     ...(p as unknown as Record<string, unknown>),
     assets: p.assets.map((a) => ({ ...a, path: `cloud://${cloudAssets[a.id]!.cloudAssetId}/${cloudAssets[a.id]!.name}` })),
     cloudAssets,
-  } as CloudManifest;
+  } as unknown as CloudManifest;
   o.onProgress?.({ stage: "saving", done: total, total });
   if (o.link && o.link.workspaceId === o.workspaceId) {
     const r = await client.req<{ version: number }>("PUT", `/v1/projects/${o.link.projectId}/manifest`, { baseVersion: o.link.version, manifest, title: p.title, message: o.message ?? "", force: !!o.force });

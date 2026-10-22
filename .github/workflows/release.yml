@@ -1,0 +1,106 @@
+name: Release
+# Tag vX.Y.Z → builds every platform, signs when secrets exist, publishes a GitHub Release
+# (auto-update feed) and prepares store packages (Microsoft Store .appx, Snap Store, Mac App Store).
+on:
+  push:
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+    inputs:
+      tag: { description: "Existing tag to (re)build", required: true }
+permissions:
+  contents: write
+
+env:
+  PNPM_VERSION: 10.14.0
+  NODE_VERSION: 22
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux (AppImage, deb, snap)
+            os: ubuntu-24.04
+            args: --linux AppImage deb snap --x64
+          - name: Windows (NSIS + Microsoft Store appx)
+            os: windows-latest
+            args: --win nsis appx --x64
+          - name: macOS (dmg, zip — arm64 + x64)
+            os: macos-14
+            args: --mac dmg zip --arm64 --x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+        with: { ref: "${{ github.event.inputs.tag || github.ref }}" }
+      - uses: pnpm/action-setup@v4
+        with: { version: "${{ env.PNPM_VERSION }}" }
+      - uses: actions/setup-node@v5
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: Bundle FFmpeg
+        shell: bash
+        run: |
+          node scripts/fetch-ffmpeg.mjs
+          if [ "$RUNNER_OS" = "macOS" ]; then node scripts/fetch-ffmpeg.mjs darwin x64; fi
+      - name: Snapcraft
+        if: runner.os == 'Linux'
+        run: sudo snap install snapcraft --classic
+      - name: Build, sign (when configured) and publish
+        working-directory: apps/desktop
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Windows Authenticode (optional): base64 .pfx + password
+          WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+          # macOS Developer ID + notarization (optional)
+          CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+          APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY_BASE64 }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          # Microsoft Store identity from Partner Center
+          MS_STORE_IDENTITY_NAME: ${{ secrets.MS_STORE_IDENTITY_NAME || 'MOTIFStudio.Unsigned' }}
+          MS_STORE_PUBLISHER: ${{ secrets.MS_STORE_PUBLISHER || 'CN=MOTIF Studio Unsigned' }}
+        run: |
+          [ -z "$CSC_LINK" ] && export CSC_IDENTITY_AUTO_DISCOVERY=false
+          EXTRA=""
+          if [ -n "$APPLE_API_KEY_BASE64" ]; then
+            echo "$APPLE_API_KEY_BASE64" | base64 --decode > "$RUNNER_TEMP/AuthKey.p8"
+            export APPLE_API_KEY="$RUNNER_TEMP/AuthKey.p8"
+            EXTRA="-c.mac.notarize=true"
+          fi
+          pnpm exec electron-vite build
+          pnpm exec electron-builder ${{ matrix.args }} $EXTRA --publish always
+      - name: Upload to Snap Store (edge)
+        if: runner.os == 'Linux' && env.SNAPCRAFT_STORE_CREDENTIALS != ''
+        env: { SNAPCRAFT_STORE_CREDENTIALS: "${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}" }
+        run: snapcraft upload --release=edge apps/desktop/release/*.snap
+      - uses: actions/upload-artifact@v4
+        with:
+          name: store-packages-${{ runner.os }}
+          path: |
+            apps/desktop/release/*.appx
+            apps/desktop/release/*.snap
+            apps/desktop/release/*.yml
+          if-no-files-found: ignore
+
+  notes:
+    name: Release notes & checksums
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with: { fetch-depth: 0 }
+      - name: Publish release with notes
+        env: { GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
+        run: |
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          mkdir dl && gh release download "$TAG" -D dl || true
+          (cd dl && sha256sum * > SHA256SUMS.txt) && gh release upload "$TAG" dl/SHA256SUMS.txt --clobber
+          SIGNED="unsigned"; [ -n "${{ secrets.WIN_CSC_LINK }}${{ secrets.MAC_CSC_LINK }}" ] && SIGNED="signed where certificates are configured"
+          awk "/^## \\[${TAG#v}\\]/{f=1;next}/^## \\[/{f=0}f" CHANGELOG.md > notes.md || true
+          printf '\n\n**Builds:** %s. Verify downloads with SHA256SUMS.txt.\n' "$SIGNED" >> notes.md
+          gh release edit "$TAG" --notes-file notes.md --draft=false --latest

@@ -3,7 +3,8 @@ import { defineConfig, externalizeDepsPlugin } from "electron-vite";
 import react from "@vitejs/plugin-react";
 
 // Workspace packages ship TypeScript sources, so they are bundled rather than externalized.
-const bundled = ["@motif/editor-core", "@motif/project-schema", "@motif/render-engine", "@motif/cloud-client", "zod"];
+// Everything is bundled into out/, so packaged builds need no node_modules (pnpm-safe, smaller, faster start).
+const bundled = ["@motif/editor-core", "@motif/project-schema", "@motif/render-engine", "@motif/cloud-client", "zod", "electron-updater"];
 
 export default defineConfig({
   main: {

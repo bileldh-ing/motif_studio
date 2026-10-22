@@ -13,6 +13,8 @@ files:
   - package.json
   - "!**/*.map"
 asar: true
+npmRebuild: false
+buildDependenciesFromSource: false
 extraResources:
   - from: src/renderer/public/fonts
     to: fonts
@@ -85,6 +87,7 @@ dmg:
   sign: false
 
 linux:
+  executableName: motif-studio
   target:
     - target: AppImage
       arch: [x64, arm64]

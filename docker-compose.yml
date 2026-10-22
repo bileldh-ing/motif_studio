@@ -1,0 +1,20 @@
+# Local cloud stack: PostgreSQL + MOTIF API (+ optional MinIO for S3).  docker compose up
+services:
+  db:
+    image: postgres:17
+    environment: { POSTGRES_PASSWORD: motif, POSTGRES_USER: motif, POSTGRES_DB: motif }
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck: { test: ["CMD", "pg_isready", "-U", "motif"], interval: 5s, retries: 10 }
+  api:
+    build: { context: ., dockerfile: apps/api/Dockerfile }
+    depends_on: { db: { condition: service_healthy } }
+    ports: ["8787:8787"]
+    environment:
+      DATABASE_URL: postgres://motif:motif@db:5432/motif
+      PUBLIC_URL: http://localhost:8787
+      WEB_URL: http://localhost:3000
+      STORAGE_DIR: /data/objects
+      STORAGE_SIGNING_SECRET: change-me-to-a-long-random-string
+      # STRIPE_SECRET_KEY / STRIPE_WEBHOOK_SECRET / STRIPE_PRICE_PRO / STRIPE_PRICE_TEAM enable billing
+    volumes: [objects:/data/objects]
+volumes: { pgdata: {}, objects: {} }

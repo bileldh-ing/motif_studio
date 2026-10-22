@@ -74,17 +74,17 @@ export class LocalStorage implements Storage {
     let size = 0;
     let over = false;
     const out = createWriteStream(tmp);
-    const src: AsyncIterable<Buffer> = Buffer.isBuffer(body) ? [body] : body;
+    const src: AsyncIterable<Buffer> | Iterable<Buffer> = Buffer.isBuffer(body) ? [body] : body;
     try {
       for await (const chunk of src) {
         size += chunk.length;
         if (size > maxSize) over = true;
         if (over) continue; // keep draining so the client gets a clean 413
         h.update(chunk);
-        if (!out.write(chunk)) await new Promise((r) => out.once("drain", r));
+        if (!out.write(chunk)) await new Promise<void>((r) => out.once("drain", () => r()));
       }
     } finally {
-      await new Promise((r) => out.end(r));
+      await new Promise<void>((r) => out.end(() => r()));
     }
     if (over) {
       await rm(tmp, { force: true });

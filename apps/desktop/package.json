@@ -21,24 +21,23 @@
     "smoke": "electron-vite build && xvfb-run -a -s \"-screen 0 1600x1000x24\" electron . --no-sandbox --disable-gpu --disable-dev-shm-usage",
     "package:dir": "electron-vite build && electron-builder --dir --publish never"
   },
-  "dependencies": {
+  "devDependencies": {
+    "@motif/cloud-client": "workspace:*",
     "@motif/editor-core": "workspace:*",
     "@motif/project-schema": "workspace:*",
     "@motif/render-engine": "workspace:*",
-    "zod": "^3.25.0",
-    "@motif/cloud-client": "workspace:*",
-    "electron-updater": "^6.6.0"
-  },
-  "devDependencies": {
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^5.2.0",
     "electron": "^44.9.2",
     "electron-builder": "^26.15.3",
+    "electron-updater": "^6.6.0",
     "electron-vite": "^6.0.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
-    "vite": "^7.3.7"
+    "vite": "^7.3.7",
+    "zod": "^3.25.0"
   },
-  "homepage": "https://github.com/bileldh-ing/motif_studio"
+  "homepage": "https://github.com/bileldh-ing/motif_studio",
+  "dependencies": {}
 }
